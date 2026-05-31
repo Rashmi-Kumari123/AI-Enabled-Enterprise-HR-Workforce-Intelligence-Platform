@@ -46,14 +46,15 @@ public class AuthService {
         if (userRepository.existsByEmail(request.email())) {
             throw new ApiException(HttpStatus.CONFLICT, "Email already registered");
         }
-        Role employeeRole = roleRepository
-                .findByName(RoleName.ROLE_EMPLOYEE)
+        RoleName roleName = resolveRoleFromEmail(request.email());
+        Role assignedRole = roleRepository
+                .findByName(roleName)
                 .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Default role not configured"));
 
         User user = new User();
         user.setEmail(request.email().toLowerCase().trim());
         user.setPassword(passwordEncoder.encode(request.password()));
-        user.getRoles().add(employeeRole);
+        user.getRoles().add(assignedRole);
         userRepository.save(user);
         return issueTokens(user);
     }
@@ -116,5 +117,20 @@ public class AuthService {
         Instant expiryAt = Instant.now().plusMillis(refreshExpirationMs);
         refreshTokenRepository.save(new RefreshToken(user, token, expiryAt));
         return token;
+    }
+//     Dev-friendly role assignment from email keywords in the local part (before @).
+//     admin → ROLE_ADMIN, hr → ROLE_HR, otherwise ROLE_EMPLOYEE.
+    static RoleName resolveRoleFromEmail(String email) {
+        String normalized = email.toLowerCase().trim();
+        int atIndex = normalized.indexOf('@');
+        String localPart = atIndex > 0 ? normalized.substring(0, atIndex) : normalized;
+
+        if (localPart.contains("admin")) {
+            return RoleName.ROLE_ADMIN;
+        }
+        if (localPart.contains("hr")) {
+            return RoleName.ROLE_HR;
+        }
+        return RoleName.ROLE_EMPLOYEE;
     }
 }

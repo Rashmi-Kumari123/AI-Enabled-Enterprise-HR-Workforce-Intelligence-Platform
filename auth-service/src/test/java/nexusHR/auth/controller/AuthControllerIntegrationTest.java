@@ -96,4 +96,36 @@ class AuthControllerIntegrationTest {
         mockMvc.perform(get("/api/v1/users/hr/dashboard").header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    void signupAssignsAdminRoleWhenEmailContainsAdminKeyword() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/signup")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "admin.test@nexushr.com",
+                                  "password": "Password123!",
+                                  "firstName": "Admin",
+                                  "lastName": "User"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.roles[0]").value("ROLE_ADMIN"));
+    }
+
+    @Test
+    void signupAssignsHrRoleWhenEmailContainsHrKeyword() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/signup")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "hr.user@nexushr.com",
+                                  "password": "Password123!",
+                                  "firstName": "HR",
+                                  "lastName": "User"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.roles[0]").value("ROLE_HR"));
+    }
 }
