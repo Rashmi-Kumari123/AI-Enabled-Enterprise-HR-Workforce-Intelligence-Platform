@@ -1,4 +1,6 @@
 package nexusHR.auth.service;
+
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
@@ -18,6 +20,8 @@ import nexusHR.auth.repository.RoleRepository;
 import nexusHR.auth.repository.UserRepository;
 import nexusHR.auth.security.JwtService;
 import nexusHR.auth.security.UserPrincipal;
+import nexusHR.auth.session.CachedSession;
+import nexusHR.auth.session.SessionCacheService;
 import nexusHR.common.enums.RoleName;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -37,9 +41,13 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final SessionCacheService sessionCacheService;
 
     @Value("${app.jwt.refresh-expiration-ms:604800000}")
     private long refreshExpirationMs;
+
+    @Value("${app.jwt.expiration-ms:86400000}")
+    private long accessExpirationMs;
 
     @Transactional
     public AuthResponse signup(SignupRequest request) {
@@ -58,6 +66,7 @@ public class AuthService {
         userRepository.save(user);
         return issueTokens(user);
     }
+
     @Transactional
     public AuthResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
@@ -69,8 +78,10 @@ public class AuthService {
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "User not found"));
 
         refreshTokenRepository.revokeAllActiveByUser(user);
+        sessionCacheService.invalidateAllForUser(user.getId());
         return issueTokens(user);
     }
+
     @Transactional
     public AuthResponse refresh(RefreshTokenRequest request) {
         RefreshToken refreshToken = refreshTokenRepository
@@ -82,10 +93,13 @@ public class AuthService {
             refreshTokenRepository.save(refreshToken);
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Refresh token expired");
         }
+        User user = refreshToken.getUser();
         refreshToken.setRevoked(true);
         refreshTokenRepository.save(refreshToken);
-        return issueTokens(refreshToken.getUser());
+        sessionCacheService.invalidateAllForUser(user.getId());
+        return issueTokens(user);
     }
+
     @Transactional
     public MessageResponse logout(RefreshTokenRequest request) {
         refreshTokenRepository
@@ -93,16 +107,24 @@ public class AuthService {
                 .ifPresent(token -> {
                     token.setRevoked(true);
                     refreshTokenRepository.save(token);
+                    sessionCacheService.invalidateAllForUser(token.getUser().getId());
                 });
         return new MessageResponse("Logged out successfully");
     }
+
     private AuthResponse issueTokens(User user) {
         UserPrincipal principal = UserPrincipal.from(user);
-        String accessToken = jwtService.generateToken(principal);
-        String refreshToken = persistRefreshToken(user);
-
         Set<String> roles =
                 user.getRoles().stream().map(role -> role.getName().name()).collect(Collectors.toSet());
+
+        String sessionId = UUID.randomUUID().toString();
+        String accessToken = jwtService.generateToken(principal, sessionId);
+        sessionCacheService.store(
+                sessionId,
+                new CachedSession(user.getId(), user.getEmail(), roles, Instant.now()),
+                Duration.ofMillis(accessExpirationMs));
+
+        String refreshToken = persistRefreshToken(user);
 
         return new AuthResponse(
                 accessToken,
@@ -112,14 +134,14 @@ public class AuthService {
                 user.getEmail(),
                 roles);
     }
+
     private String persistRefreshToken(User user) {
         String token = UUID.randomUUID().toString();
         Instant expiryAt = Instant.now().plusMillis(refreshExpirationMs);
         refreshTokenRepository.save(new RefreshToken(user, token, expiryAt));
         return token;
     }
-//     Dev-friendly role assignment from email keywords in the local part (before @).
-//     admin → ROLE_ADMIN, hr → ROLE_HR, otherwise ROLE_EMPLOYEE.
+
     static RoleName resolveRoleFromEmail(String email) {
         String normalized = email.toLowerCase().trim();
         int atIndex = normalized.indexOf('@');

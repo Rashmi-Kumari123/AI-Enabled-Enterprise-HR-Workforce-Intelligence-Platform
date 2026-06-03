@@ -1,10 +1,12 @@
 package nexusHR.auth.security;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
+import nexusHR.auth.session.SessionCacheService;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,6 +22,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+    private final SessionCacheService sessionCacheService;
 
     @Override
     protected void doFilterInternal(
@@ -36,6 +39,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String username = jwtService.extractUsername(jwt);
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            String sessionId = jwtService.extractSessionId(jwt);
+            if (sessionId == null || !sessionCacheService.isActive(sessionId)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
             if (jwtService.isTokenValid(jwt, userDetails)) {
                 UsernamePasswordAuthenticationToken authentication =

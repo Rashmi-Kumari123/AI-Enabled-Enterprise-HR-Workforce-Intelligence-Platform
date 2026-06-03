@@ -3,3 +3,5 @@
 CREATE DATABASE nexus_auth_db;
 CREATE DATABASE nexus_employee_db;
 CREATE DATABASE nexus_payroll_db;
+CREATE DATABASE nexus_attendance_db;
+CREATE DATABASE nexus_leave_db;

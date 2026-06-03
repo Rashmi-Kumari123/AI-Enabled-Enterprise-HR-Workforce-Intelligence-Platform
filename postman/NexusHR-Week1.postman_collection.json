@@ -1,0 +1,246 @@
+{
+  "info": {
+    "name": "NexusHR Week 1",
+    "description": "Auth, employee, attendance, and leave APIs for local microservices.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "authUrl", "value": "http://localhost:8081" },
+    { "key": "employeeUrl", "value": "http://localhost:8082" },
+    { "key": "attendanceUrl", "value": "http://localhost:8084" },
+    { "key": "leaveUrl", "value": "http://localhost:8085" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1 - Auth",
+      "item": [
+        {
+          "name": "Health",
+          "request": { "method": "GET", "url": "{{authUrl}}/api/v1/auth/health" }
+        },
+        {
+          "name": "Signup (employee)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if (pm.response.code === 201) {",
+                "  var j = pm.response.json();",
+                "  pm.collectionVariables.set('accessToken', j.accessToken);",
+                "  pm.collectionVariables.set('refreshToken', j.refreshToken);",
+                "}"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"employee.week1@nexushr.com\",\n  \"password\": \"Password123!\",\n  \"firstName\": \"Week\",\n  \"lastName\": \"One\"\n}"
+            },
+            "url": "{{authUrl}}/api/v1/auth/signup"
+          }
+        },
+        {
+          "name": "Signup (HR)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if (pm.response.code === 201) {",
+                "  var j = pm.response.json();",
+                "  pm.collectionVariables.set('accessToken', j.accessToken);",
+                "  pm.collectionVariables.set('refreshToken', j.refreshToken);",
+                "}"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"hr.week1@nexushr.com\",\n  \"password\": \"Password123!\",\n  \"firstName\": \"HR\",\n  \"lastName\": \"Reviewer\"\n}"
+            },
+            "url": "{{authUrl}}/api/v1/auth/signup"
+          }
+        },
+        {
+          "name": "Login",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "var j = pm.response.json();",
+                "pm.collectionVariables.set('accessToken', j.accessToken);",
+                "pm.collectionVariables.set('refreshToken', j.refreshToken);"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"employee.week1@nexushr.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": "{{authUrl}}/api/v1/auth/login"
+          }
+        },
+        {
+          "name": "Me (requires Redis session)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{authUrl}}/api/v1/users/me"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{authUrl}}/api/v1/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 - Employee",
+      "item": [
+        {
+          "name": "List employees (HR token)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{employeeUrl}}/api/v1/employees"
+          }
+        },
+        {
+          "name": "Create employee",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"employeeCode\": \"EMP-W1-001\",\n  \"firstName\": \"Week\",\n  \"lastName\": \"One\",\n  \"email\": \"employee.week1@nexushr.com\",\n  \"phone\": \"9999999999\",\n  \"departmentId\": 1,\n  \"hireDate\": \"2026-06-01\",\n  \"employmentStatus\": \"ACTIVE\"\n}"
+            },
+            "url": "{{employeeUrl}}/api/v1/employees"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 - Attendance",
+      "item": [
+        {
+          "name": "Health",
+          "request": { "method": "GET", "url": "{{attendanceUrl}}/api/v1/attendance/health" }
+        },
+        {
+          "name": "Clock in",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeId\": 1,\n  \"notes\": \"Morning shift\"\n}"
+            },
+            "url": "{{attendanceUrl}}/api/v1/attendance/clock-in"
+          }
+        },
+        {
+          "name": "Clock out",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeId\": 1\n}"
+            },
+            "url": "{{attendanceUrl}}/api/v1/attendance/clock-out"
+          }
+        },
+        {
+          "name": "Today attendance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{attendanceUrl}}/api/v1/attendance/employee/1/today"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4 - Leave",
+      "item": [
+        {
+          "name": "Health",
+          "request": { "method": "GET", "url": "{{leaveUrl}}/api/v1/leaves/health" }
+        },
+        {
+          "name": "Submit leave",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeId\": 1,\n  \"leaveType\": \"ANNUAL\",\n  \"startDate\": \"2026-06-15\",\n  \"endDate\": \"2026-06-17\",\n  \"reason\": \"Personal leave\"\n}"
+            },
+            "url": "{{leaveUrl}}/api/v1/leaves"
+          }
+        },
+        {
+          "name": "List pending (HR)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{leaveUrl}}/api/v1/leaves/pending"
+          }
+        },
+        {
+          "name": "Approve leave",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment\": \"Approved\"\n}"
+            },
+            "url": "{{leaveUrl}}/api/v1/leaves/1/approve"
+          }
+        },
+        {
+          "name": "Cancel leave",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{leaveUrl}}/api/v1/leaves/2/cancel"
+          }
+        }
+      ]
+    }
+  ]
+}
