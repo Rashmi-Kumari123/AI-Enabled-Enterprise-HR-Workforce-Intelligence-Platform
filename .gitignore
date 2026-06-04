@@ -1,3 +1,9 @@
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
 # Maven build output
 **/target/
 pom.xml.tag

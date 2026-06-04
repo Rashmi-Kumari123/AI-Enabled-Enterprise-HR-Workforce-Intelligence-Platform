@@ -9,6 +9,8 @@
     { "key": "employeeUrl", "value": "http://localhost:8082" },
     { "key": "attendanceUrl", "value": "http://localhost:8084" },
     { "key": "leaveUrl", "value": "http://localhost:8085" },
+    { "key": "payrollUrl", "value": "http://localhost:8083" },
+    { "key": "performanceUrl", "value": "http://localhost:8086" },
     { "key": "accessToken", "value": "" },
     { "key": "refreshToken", "value": "" }
   ],
@@ -238,6 +240,108 @@
             "method": "POST",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
             "url": "{{leaveUrl}}/api/v1/leaves/2/cancel"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5 - Payroll (Day 10)",
+      "item": [
+        {
+          "name": "Health",
+          "request": { "method": "GET", "url": "{{payrollUrl}}/api/v1/payroll/health" }
+        },
+        {
+          "name": "Upsert salary structure (HR)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeId\": 1,\n  \"baseSalary\": 50000.00,\n  \"hraPercent\": 40,\n  \"transportAllowance\": 2000,\n  \"otherAllowance\": 1000\n}"
+            },
+            "url": "{{payrollUrl}}/api/v1/payroll/salary-structures"
+          }
+        },
+        {
+          "name": "Generate payslip (HR)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeId\": 1,\n  \"employeeCode\": \"EMP001\",\n  \"employeeName\": \"Rashmi Kumari\",\n  \"payYear\": 2026,\n  \"payMonth\": 6,\n  \"workingDays\": 22,\n  \"unpaidLeaveDays\": 0\n}"
+            },
+            "url": "{{payrollUrl}}/api/v1/payroll/payslips/generate"
+          }
+        },
+        {
+          "name": "Download payslip PDF",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{payrollUrl}}/api/v1/payroll/payslips/1/download"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6 - Performance (Day 11)",
+      "item": [
+        {
+          "name": "Health",
+          "request": { "method": "GET", "url": "{{performanceUrl}}/api/v1/performance/health" }
+        },
+        {
+          "name": "Create review (Manager)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeId\": 1,\n  \"reviewYear\": 2026,\n  \"reviewQuarter\": 2,\n  \"goals\": \"Improve delivery and mentoring\"\n}"
+            },
+            "url": "{{performanceUrl}}/api/v1/performance/reviews"
+          }
+        },
+        {
+          "name": "Set ratings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ratings\": [\n    { \"criterion\": \"TECHNICAL_SKILLS\", \"score\": 4 },\n    { \"criterion\": \"COMMUNICATION\", \"score\": 5 },\n    { \"criterion\": \"TEAMWORK\", \"score\": 4 },\n    { \"criterion\": \"DELIVERY\", \"score\": 4 },\n    { \"criterion\": \"INITIATIVE\", \"score\": 5 }\n  ]\n}"
+            },
+            "url": "{{performanceUrl}}/api/v1/performance/reviews/1/ratings"
+          }
+        },
+        {
+          "name": "Submit review",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{performanceUrl}}/api/v1/performance/reviews/1/submit"
+          }
+        },
+        {
+          "name": "Employee scorecard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{performanceUrl}}/api/v1/performance/reviews/employee/1/scorecard"
           }
         }
       ]

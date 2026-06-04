@@ -28,6 +28,13 @@ public class EmployeeService {
     public EmployeeResponse findById(Long id) {
         return toResponse(getEmployee(id));
     }
+    @Transactional(readOnly = true)
+    public EmployeeResponse findByEmail(String email) {
+        return employeeRepository
+                .findByEmail(email.toLowerCase().trim())
+                .map(this::toResponse)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "No employee profile linked to this account"));
+    }
     @Transactional
     public EmployeeResponse create(EmployeeRequest request) {
         validateUniqueFields(null, request);
