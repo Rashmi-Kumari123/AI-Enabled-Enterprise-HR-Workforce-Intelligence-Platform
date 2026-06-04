@@ -153,6 +153,9 @@ public class AuthService {
         if (localPart.contains("hr")) {
             return RoleName.ROLE_HR;
         }
+        if (localPart.contains("manager")) {
+            return RoleName.ROLE_MANAGER;
+        }
         return RoleName.ROLE_EMPLOYEE;
     }
 }
