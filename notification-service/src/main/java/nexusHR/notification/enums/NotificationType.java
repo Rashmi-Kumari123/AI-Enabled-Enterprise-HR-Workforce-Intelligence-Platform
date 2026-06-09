@@ -1,0 +1,13 @@
+package nexusHR.notification.enums;
+public enum NotificationType {
+    LEAVE_SUBMITTED,
+    LEAVE_APPROVED,
+    LEAVE_REJECTED,
+    LEAVE_CANCELLED,
+    ATTENDANCE_CLOCK_IN,
+    ATTENDANCE_CLOCK_OUT,
+    APPROVAL_REMINDER,
+    PAYROLL_READY,
+    PERFORMANCE_REVIEW,
+    SYSTEM
+}

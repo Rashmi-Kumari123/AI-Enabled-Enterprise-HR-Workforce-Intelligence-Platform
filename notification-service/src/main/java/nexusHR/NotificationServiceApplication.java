@@ -2,11 +2,11 @@ package nexusHR;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
+
 @SpringBootApplication
 @EnableScheduling
-public class PayrollServiceApplication {
-	public static void main(String[] args) {
-		SpringApplication.run(PayrollServiceApplication.class, args);
-	}
-
+public class NotificationServiceApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(NotificationServiceApplication.class, args);
+    }
 }
