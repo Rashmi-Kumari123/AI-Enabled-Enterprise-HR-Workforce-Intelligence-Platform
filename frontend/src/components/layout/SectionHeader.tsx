@@ -10,9 +10,9 @@ export function SectionHeader({ eyebrow, title, description, centered = false }:
       {eyebrow ? (
         <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-brand-teal">{eyebrow}</p>
       ) : null}
-      <h2 className="text-2xl font-bold tracking-tight md:text-3xl">{title}</h2>
+      <h2 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">{title}</h2>
       {description ? (
-        <p className={`mt-2 max-w-2xl text-muted-foreground ${centered ? 'mx-auto' : ''}`}>
+        <p className={`mt-2 max-w-2xl text-sm font-medium leading-relaxed text-foreground/70 ${centered ? 'mx-auto' : ''}`}>
           {description}
         </p>
       ) : null}

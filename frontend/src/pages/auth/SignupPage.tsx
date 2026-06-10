@@ -7,6 +7,10 @@ import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/contexts/auth-context'
 import { ApiError } from '@/lib/api/http'
+
+const authFieldClass =
+  'h-11 rounded-xl border-border/80 bg-input text-foreground placeholder:text-muted-foreground'
+
 export function SignupPage() {
   const { signup } = useAuth()
   const navigate = useNavigate()
@@ -49,7 +53,7 @@ export function SignupPage() {
             <Input
               id="firstName"
               required
-              className="h-11 rounded-xl bg-white"
+              className={authFieldClass}
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
             />
@@ -59,7 +63,7 @@ export function SignupPage() {
             <Input
               id="lastName"
               required
-              className="h-11 rounded-xl bg-white"
+              className={authFieldClass}
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
             />
@@ -71,7 +75,7 @@ export function SignupPage() {
             id="email"
             type="email"
             required
-            className="h-11 rounded-xl bg-white"
+            className={authFieldClass}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="employee@nexushr.com"
@@ -83,7 +87,7 @@ export function SignupPage() {
             id="password"
             required
             minLength={8}
-            className="h-11 rounded-xl bg-white"
+            className={authFieldClass}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />

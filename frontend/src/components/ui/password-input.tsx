@@ -12,7 +12,10 @@ const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
         <Input
           ref={ref}
           type={visible ? 'text' : 'password'}
-          className={cn('pr-11', className)}
+          className={cn(
+            'pr-11 text-foreground caret-foreground [-webkit-text-fill-color:currentColor]',
+            className,
+          )}
           {...props}
         />
         <button

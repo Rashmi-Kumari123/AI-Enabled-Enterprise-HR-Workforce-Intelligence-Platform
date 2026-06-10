@@ -45,6 +45,26 @@
   --input: oklch(0.94 0.02 250);
   --ring: var(--brand-teal);
 }
+.dark {
+  --background: oklch(0.14 0.02 265);
+  --foreground: oklch(0.97 0.008 250);
+  --card: oklch(0.21 0.025 265);
+  --card-foreground: oklch(0.97 0.008 250);
+  --primary: oklch(0.72 0.14 195);
+  --primary-foreground: oklch(0.12 0.02 265);
+  --secondary: oklch(0.24 0.03 265);
+  --secondary-foreground: oklch(0.94 0.01 250);
+  --muted: oklch(0.26 0.025 265);
+  --muted-foreground: oklch(0.78 0.02 265);
+  --accent: oklch(0.28 0.06 305);
+  --accent-foreground: oklch(0.94 0.02 305);
+  --destructive: oklch(0.62 0.18 25);
+  --border: oklch(0.32 0.03 265);
+  --input: oklch(0.26 0.03 265);
+  --ring: oklch(0.72 0.14 195);
+  --brand-teal: oklch(0.72 0.14 195);
+  --brand-purple: oklch(0.68 0.2 305);
+}
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -52,6 +72,12 @@
   body {
     @apply bg-background text-foreground min-h-svh antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  input[type='password'] {
+    -webkit-text-fill-color: currentColor;
   }
 }
 @layer utilities {
@@ -72,12 +98,60 @@
       radial-gradient(at 60% 80%, oklch(0.94 0.05 195 / 0.3) 0px, transparent 50%);
   }
   .glass-panel {
-    @apply border border-white/60 bg-white/80 shadow-xl shadow-black/5 backdrop-blur-md;
+    @apply border border-border/60 bg-card shadow-xl shadow-black/5 dark:border-border dark:bg-card;
+  }
+  .surface-panel {
+    @apply rounded-2xl border border-border/50 bg-card text-card-foreground shadow-lg shadow-black/[0.04] dark:border-border dark:shadow-black/30;
+  }
+  .surface-soft {
+    @apply bg-muted/40 dark:bg-muted/30;
   }
   .stat-value-teal {
-    color: oklch(0.52 0.14 195);
+    color: oklch(0.48 0.14 195);
   }
   .stat-value-purple {
-    color: oklch(0.5 0.22 305);
+    color: oklch(0.46 0.22 305);
+  }
+  .dark .stat-value-teal {
+    color: oklch(0.78 0.14 195);
+  }
+  .dark .stat-value-purple {
+    color: oklch(0.76 0.2 305);
+  }
+  .badge-success {
+    @apply bg-emerald-500/10 text-emerald-700 dark:text-emerald-400;
+  }
+  .badge-warning {
+    @apply bg-amber-500/10 text-amber-700 dark:text-amber-400;
+  }
+  .badge-danger {
+    @apply bg-red-500/10 text-red-700 dark:text-red-400;
+  }
+  .badge-info {
+    @apply bg-sky-500/10 text-sky-700 dark:text-sky-400;
+  }
+  .badge-neutral {
+    @apply bg-muted text-muted-foreground;
+  }
+  .ai-glow {
+    background: linear-gradient(
+      135deg,
+      oklch(0.94 0.05 195 / 0.6) 0%,
+      oklch(0.93 0.06 305 / 0.5) 100%
+    );
+  }
+  .dark .ai-glow {
+    background: linear-gradient(
+      135deg,
+      oklch(0.25 0.06 195 / 0.5) 0%,
+      oklch(0.22 0.08 305 / 0.4) 100%
+    );
+  }
+  .dark .bg-mesh {
+    background-color: oklch(0.14 0.02 265);
+    background-image:
+      radial-gradient(at 20% 20%, oklch(0.25 0.08 195 / 0.25) 0px, transparent 50%),
+      radial-gradient(at 80% 10%, oklch(0.22 0.1 305 / 0.2) 0px, transparent 45%),
+      radial-gradient(at 60% 80%, oklch(0.2 0.06 195 / 0.15) 0px, transparent 50%);
   }
 }

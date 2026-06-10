@@ -131,7 +131,7 @@ export function PlatformStatusPage() {
               <Card key={item.id} className="surface-panel border-0">
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-3">
-                    <SectionHeader title={item.label} description={item.description} />
+                    <SectionHeader title={item.label} description={item.detail} />
                     <span
                       className={cn(
                         'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase',

@@ -8,6 +8,9 @@ import { Label } from '@/components/ui/label'
 import { useAuth } from '@/contexts/auth-context'
 import { ApiError } from '@/lib/api/http'
 
+const authFieldClass =
+  'h-11 rounded-xl border-border/80 bg-input text-foreground placeholder:text-muted-foreground'
+
 export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
@@ -33,8 +36,10 @@ export function LoginPage() {
   }
   return (
     <div className="p-6 md:p-8">
-      <h2 className="text-2xl font-bold">Welcome back</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Sign in to your workforce dashboard</p>
+      <h2 className="text-2xl font-bold">Welcome Back to NexusHR</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Manage people, performance, and productivity from one platform.
+      </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
         <div className="space-y-2">
@@ -44,23 +49,32 @@ export function LoginPage() {
             type="email"
             autoComplete="email"
             required
-            className="h-11 rounded-xl border-border/80 bg-white"
+            className={authFieldClass}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@company.com"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            <button type="button" className="text-xs font-medium text-brand-teal hover:underline">
+              Forgot password?
+            </button>
+          </div>
           <PasswordInput
             id="password"
             autoComplete="current-password"
             required
-            className="h-11 rounded-xl border-border/80 bg-white"
+            className={authFieldClass}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <input type="checkbox" className="rounded border-border" defaultChecked />
+          Remember me
+        </label>
         {error ? (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
             {error}
@@ -71,6 +85,18 @@ export function LoginPage() {
           Sign in
         </Button>
       </form>
+
+      <div className="mt-6 space-y-3">
+        <p className="text-center text-xs text-muted-foreground">Or continue with</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Button type="button" variant="outline" className="rounded-xl bg-white dark:bg-card">
+            Google
+          </Button>
+          <Button type="button" variant="outline" className="rounded-xl bg-white dark:bg-card">
+            Microsoft
+          </Button>
+        </div>
+      </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         New to NexusHR?{' '}

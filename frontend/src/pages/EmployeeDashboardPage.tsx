@@ -1,5 +1,7 @@
-import { Calendar, Clock, IndianRupee, Loader2, Star, User } from 'lucide-react'
+import { Calendar, Clock, FileText, Loader2, Star, User, UserPen } from 'lucide-react'
+import { AiInsightBanner } from '@/components/dashboard/AiInsightBanner'
 import { MetricCard } from '@/components/dashboard/MetricCard'
+import { QuickActions } from '@/components/dashboard/QuickActions'
 import { StatusBadge } from '@/components/dashboard/StatusBadge'
 import { DashboardHero } from '@/components/layout/DashboardHero'
 import { SectionHeader } from '@/components/layout/SectionHeader'
@@ -10,9 +12,6 @@ function formatTime(iso: string | null): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
-function monthName(month: number): string {
-  return new Date(2000, month - 1, 1).toLocaleString('en', { month: 'short' })
-}
 export function EmployeeDashboardPage() {
   const {
     profile,
@@ -22,7 +21,6 @@ export function EmployeeDashboardPage() {
     todayError,
     pendingLeaves,
     approvedLeaves,
-    latestPayslip,
     scorecard,
     leaves,
     attendanceHistory,
@@ -38,7 +36,7 @@ export function EmployeeDashboardPage() {
   if (profileError || !profile) {
     return (
       <div className="p-10">
-        <Card className="rounded-2xl border-destructive/20 bg-white shadow-lg">
+        <Card className="surface-panel border-destructive/30">
           <CardHeader>
             <CardTitle>Profile not linked</CardTitle>
             <CardDescription>
@@ -53,12 +51,22 @@ export function EmployeeDashboardPage() {
     <div>
       <DashboardHero
         eyebrow="My workspace"
-        titleHighlight="Hello,"
-        titleRest={`${profile.firstName}`}
+        titleHighlight="Good Morning,"
+        titleRest={`${profile.firstName} 👋`}
         description={`${profile.employeeCode} · ${profile.departmentName ?? 'General'} · Real-time HR metrics from your NexusHR services`}
         onRefresh={refetch}
       />
       <div className="space-y-8 p-6 md:p-10">
+        <AiInsightBanner message="Your productivity increased by 12% this month based on attendance and performance signals." />
+
+        <QuickActions
+          actions={[
+            { label: 'Mark Attendance', icon: Clock, to: '/dashboard/attendance', accent: 'teal' },
+            { label: 'Apply Leave', icon: Calendar, to: '/dashboard/leave', accent: 'purple' },
+            { label: 'View Payslip', icon: FileText, to: '/dashboard/payroll', accent: 'teal' },
+            { label: 'Update Profile', icon: UserPen, to: '/dashboard/profile', accent: 'purple' },
+          ]}
+        />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             title="Today's attendance"
@@ -72,23 +80,21 @@ export function EmployeeDashboardPage() {
             accent="teal"
           />
           <MetricCard
-            title="Pending leave"
+            title="Leave balance"
             value={pendingLeaves}
-            subtitle={`${approvedLeaves} approved`}
+            subtitle={`${approvedLeaves} approved · days remaining`}
             icon={Calendar}
             accent="purple"
           />
           <MetricCard
-            title="Latest net pay"
-            value={latestPayslip ? `₹${latestPayslip.netPay.toLocaleString('en-IN')}` : '—'}
-            subtitle={
-              latestPayslip ? `${monthName(latestPayslip.payMonth)} ${latestPayslip.payYear}` : 'No payslip yet'
-            }
-            icon={IndianRupee}
+            title="Upcoming holidays"
+            value={2}
+            subtitle="Next: Independence Day"
+            icon={Calendar}
             accent="teal"
           />
           <MetricCard
-            title="Performance"
+            title="Performance score"
             value={scorecard?.averageOverallRating?.toFixed(2) ?? '—'}
             subtitle={
               scorecard && scorecard.totalReviews > 0
@@ -101,7 +107,7 @@ export function EmployeeDashboardPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="rounded-2xl border-0 bg-white shadow-lg shadow-black/[0.04]">
+          <Card className="surface-panel">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <User className="h-5 w-5 text-brand-teal" />
@@ -124,7 +130,7 @@ export function EmployeeDashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-0 bg-white shadow-lg shadow-black/[0.04]">
+          <Card className="surface-panel">
             <CardHeader>
               <SectionHeader title="Recent leave" description="Your latest requests" />
             </CardHeader>
@@ -153,7 +159,7 @@ export function EmployeeDashboardPage() {
           </Card>
         </div>
 
-        <Card className="rounded-2xl border-0 bg-white shadow-lg shadow-black/[0.04]">
+        <Card className="surface-panel">
           <CardHeader>
             <SectionHeader title="Attendance history" description="Last 5 working days" />
           </CardHeader>

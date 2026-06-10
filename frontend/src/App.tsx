@@ -5,14 +5,28 @@ import { AppLayout } from '@/layouts/AppLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { SignupPage } from '@/pages/auth/SignupPage'
+import { AiAssistantPage } from '@/pages/AiAssistantPage'
+import { AnalyticsReportsPage } from '@/pages/AnalyticsReportsPage'
+import { AttendancePage } from '@/pages/AttendancePage'
+import { AttritionInsightsPage } from '@/pages/AttritionInsightsPage'
 import { DashboardRouter } from '@/pages/DashboardRouter'
 import { EmployeeDashboardPage } from '@/pages/EmployeeDashboardPage'
+import { EmployeeDirectoryPage } from '@/pages/EmployeeDirectoryPage'
+import { HrAdminDashboardPage } from '@/pages/HrAdminDashboardPage'
+import { LeaveManagementPage } from '@/pages/LeaveManagementPage'
 import { ManagerDashboardPage } from '@/pages/ManagerDashboardPage'
+import { NotificationsPage } from '@/pages/NotificationsPage'
+import { PayrollPage } from '@/pages/PayrollPage'
+import { PerformancePage } from '@/pages/PerformancePage'
+import { ProfileSettingsPage } from '@/pages/ProfileSettingsPage'
+import { SplashPage } from '@/pages/SplashPage'
+import { WorkforceIntelligencePage } from '@/pages/WorkforceIntelligencePage'
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Navigate to="/splash" replace />} />
+      <Route path="/splash" element={<SplashPage />} />
 
       <Route element={<GuestRoute />}>
         <Route element={<AuthLayout />}>
@@ -20,14 +34,28 @@ export default function App() {
           <Route path="/signup" element={<SignupPage />} />
         </Route>
       </Route>
+
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardRouter />} />
           <Route path="/dashboard/employee" element={<EmployeeDashboardPage />} />
           <Route path="/dashboard/manager" element={<ManagerDashboardPage />} />
+          <Route path="/dashboard/hr-admin" element={<HrAdminDashboardPage />} />
+          <Route path="/dashboard/directory" element={<EmployeeDirectoryPage />} />
+          <Route path="/dashboard/attendance" element={<AttendancePage />} />
+          <Route path="/dashboard/leave" element={<LeaveManagementPage />} />
+          <Route path="/dashboard/payroll" element={<PayrollPage />} />
+          <Route path="/dashboard/performance" element={<PerformancePage />} />
+          <Route path="/dashboard/intelligence" element={<WorkforceIntelligencePage />} />
+          <Route path="/dashboard/insights" element={<AttritionInsightsPage />} />
+          <Route path="/dashboard/ai-assistant" element={<AiAssistantPage />} />
+          <Route path="/dashboard/analytics" element={<AnalyticsReportsPage />} />
+          <Route path="/dashboard/notifications" element={<NotificationsPage />} />
+          <Route path="/dashboard/profile" element={<ProfileSettingsPage />} />
         </Route>
       </Route>
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+
+      <Route path="*" element={<Navigate to="/splash" replace />} />
     </Routes>
   )
 }

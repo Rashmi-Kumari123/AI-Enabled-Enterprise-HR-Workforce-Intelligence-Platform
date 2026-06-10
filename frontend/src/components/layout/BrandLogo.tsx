@@ -14,7 +14,7 @@ export function BrandLogo({ className, showTagline = false, linkTo = '/dashboard
       <div>
         <p className="text-lg font-bold tracking-tight text-foreground">NexusHR</p>
         {showTagline ? (
-          <p className="text-xs text-muted-foreground">Workforce Intelligence</p>
+          <p className="text-xs text-muted-foreground">Empowering Workforce Intelligence</p>
         ) : null}
       </div>
     </div>

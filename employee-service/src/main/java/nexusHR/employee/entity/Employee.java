@@ -58,6 +58,12 @@ public class Employee {
     @Column(nullable = false, length = 32)
     private EmploymentStatus employmentStatus = EmploymentStatus.ACTIVE;
 
+    @Column(name = "termination_date")
+    private LocalDate terminationDate;
+
+    @Column(name = "onboarding_completed", nullable = false)
+    private boolean onboardingCompleted = true;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 

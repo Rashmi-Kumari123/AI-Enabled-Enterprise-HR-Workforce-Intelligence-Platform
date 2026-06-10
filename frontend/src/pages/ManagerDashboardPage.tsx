@@ -34,8 +34,8 @@ export function ManagerDashboardPage() {
     <div>
       <DashboardHero
         eyebrow={`Team overview · ${roleLabel}`}
-        titleHighlight="Manage"
-        titleRest="your workforce"
+        titleHighlight="Team Performance"
+        titleRest="Overview"
         description="Track headcount, pending leave approvals, and team roster — powered by live NexusHR APIs"
         onRefresh={refetch}
       />
@@ -80,14 +80,14 @@ export function ManagerDashboardPage() {
           </Card>
         )}
         {!employeesFailed && employees.length === 0 && (
-          <Card className="rounded-2xl border-dashed border-border bg-white/80">
+          <Card className="surface-panel border-dashed">
             <CardContent className="py-8 text-center text-sm text-muted-foreground">
               No employees in database. Restart employee-service for Flyway seed or add via Postman.
             </CardContent>
           </Card>
         )}
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="rounded-2xl border-0 bg-white shadow-lg shadow-black/[0.04]">
+          <Card className="surface-panel">
             <CardHeader>
               <SectionHeader
                 title="Pending approvals"
@@ -100,12 +100,12 @@ export function ManagerDashboardPage() {
               ) : (
                 <ul className="space-y-3">
                   {pendingLeaves.slice(0, 6).map((leave) => (
-                    <li key={leave.id} className="rounded-xl border border-border/60 bg-muted/30 p-4">
+                    <li key={leave.id} className="rounded-xl border border-border/60 bg-muted/40 p-4">
                       <div className="flex items-center justify-between">
-                        <p className="font-medium">Employee #{leave.employeeId}</p>
+                        <p className="font-semibold text-foreground">Employee #{leave.employeeId}</p>
                         <StatusBadge status={leave.status} />
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
+                      <p className="mt-1 text-xs font-medium text-foreground/65">
                         {leave.leaveType} · {leave.startDate} → {leave.endDate}
                       </p>
                     </li>
@@ -114,7 +114,7 @@ export function ManagerDashboardPage() {
               )}
             </CardContent>
           </Card>
-          <Card className="rounded-2xl border-0 bg-white shadow-lg shadow-black/[0.04]">
+          <Card className="surface-panel">
             <CardHeader>
               <CardTitle className="text-lg">Team roster</CardTitle>
               <CardDescription>{employees.length} people</CardDescription>
@@ -126,22 +126,22 @@ export function ManagerDashboardPage() {
                 <div className="max-h-80 overflow-y-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b text-left text-muted-foreground">
-                        <th className="pb-3 font-medium">Name</th>
-                        <th className="pb-3 font-medium">Dept</th>
-                        <th className="pb-3 font-medium">Status</th>
+                      <tr className="border-b border-border text-left text-xs font-semibold uppercase tracking-wide text-foreground/55">
+                        <th className="pb-3 font-semibold">Name</th>
+                        <th className="pb-3 font-semibold">Dept</th>
+                        <th className="pb-3 font-semibold">Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {employees.map((emp) => (
                         <tr key={emp.id} className="border-b border-border/40 last:border-0">
                           <td className="py-3">
-                            <p className="font-medium">
+                            <p className="font-semibold text-foreground">
                               {emp.firstName} {emp.lastName}
                             </p>
-                            <p className="text-xs text-muted-foreground">{emp.employeeCode}</p>
+                            <p className="text-xs font-medium text-foreground/60">{emp.employeeCode}</p>
                           </td>
-                          <td className="py-3 text-muted-foreground">{emp.departmentName ?? '—'}</td>
+                          <td className="py-3 font-medium text-foreground/75">{emp.departmentName ?? '—'}</td>
                           <td className="py-3">
                             <StatusBadge status={emp.employmentStatus} />
                           </td>
