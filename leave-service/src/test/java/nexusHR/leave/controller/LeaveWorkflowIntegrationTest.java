@@ -66,6 +66,12 @@ class LeaveWorkflowIntegrationTest {
                         .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("employee@nexushr.com").roles("EMPLOYEE")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].status").value("APPROVED"));
+
+        mockMvc.perform(get("/api/v1/leaves/employee/1/balances")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("employee@nexushr.com").roles("EMPLOYEE")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.leaveType == 'ANNUAL')].usedDays").value(3))
+                .andExpect(jsonPath("$[?(@.leaveType == 'ANNUAL')].remainingDays").value(17));
     }
 
     @Test

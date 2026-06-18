@@ -10,11 +10,13 @@ import nexusHR.auth.dto.AuthResponse;
 import nexusHR.auth.dto.LoginRequest;
 import nexusHR.auth.dto.MessageResponse;
 import nexusHR.auth.dto.RefreshTokenRequest;
+import nexusHR.auth.dto.InternalOnboardEmployeeRequest;
 import nexusHR.auth.dto.SignupRequest;
 import nexusHR.auth.entity.RefreshToken;
 import nexusHR.auth.entity.Role;
 import nexusHR.auth.entity.User;
 import nexusHR.auth.exception.ApiException;
+import nexusHR.auth.integration.EmployeeServiceClient;
 import nexusHR.auth.repository.RefreshTokenRepository;
 import nexusHR.auth.repository.RoleRepository;
 import nexusHR.auth.repository.UserRepository;
@@ -31,7 +33,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -42,6 +43,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final SessionCacheService sessionCacheService;
+    private final EmployeeServiceClient employeeServiceClient;
 
     @Value("${app.jwt.refresh-expiration-ms:604800000}")
     private long refreshExpirationMs;
@@ -64,6 +66,14 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.password()));
         user.getRoles().add(assignedRole);
         userRepository.save(user);
+        employeeServiceClient.onboardEmployee(new InternalOnboardEmployeeRequest(
+                user.getId(),
+                request.firstName().trim(),
+                request.lastName().trim(),
+                user.getEmail(),
+                null,
+                null,
+                null));
         return issueTokens(user);
     }
 

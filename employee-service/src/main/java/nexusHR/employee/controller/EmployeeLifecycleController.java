@@ -1,6 +1,8 @@
 package nexusHR.employee.controller;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import nexusHR.employee.dto.EmployeeOnboardingPipelineResponse;
 import nexusHR.employee.dto.EmployeeResponse;
 import nexusHR.employee.dto.InternalOnboardRequest;
 import nexusHR.employee.dto.OffboardRequest;
@@ -47,6 +49,20 @@ public class EmployeeLifecycleController {
         validateInternalKey(key);
         return employeeService.findById(employeeId);
     }
+
+    @GetMapping("/internal/active")
+    public List<EmployeeResponse> internalListActive(@RequestHeader("X-Internal-Key") String key) {
+        validateInternalKey(key);
+        return employeeService.findAll().stream()
+                .filter(employee -> employee.employmentStatus() != nexusHR.common.enums.EmploymentStatus.TERMINATED)
+                .toList();
+    }
+    @GetMapping("/onboarding/pipeline")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    public List<EmployeeOnboardingPipelineResponse> onboardingPipeline() {
+        return employeeLifecycleService.getOnboardingPipeline();
+    }
+
     @GetMapping("/{id}/onboarding")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER', 'EMPLOYEE')")
     public OnboardingStatusResponse onboardingStatus(@PathVariable Long id) {

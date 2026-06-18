@@ -69,6 +69,9 @@ public class PerformanceReview {
     @OneToMany(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PerformanceRating> ratings = new ArrayList<>();
 
+    @OneToMany(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PerformanceFeedback> feedback = new ArrayList<>();
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();

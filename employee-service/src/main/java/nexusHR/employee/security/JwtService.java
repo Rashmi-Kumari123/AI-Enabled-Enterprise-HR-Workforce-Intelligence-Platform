@@ -39,6 +39,17 @@ public class JwtService {
         }
         return Collections.emptyList();
     }
+    public Long extractUserId(String token) {
+        Object userId = parseClaims(token).get("userId");
+        if (userId instanceof Number number) {
+            return number.longValue();
+        }
+        if (userId instanceof String value && !value.isBlank()) {
+            return Long.parseLong(value);
+        }
+        return null;
+    }
+
     private Claims parseClaims(String token) {
         return Jwts.parser().verifyWith(signingKey).build().parseSignedClaims(token).getPayload();
     }

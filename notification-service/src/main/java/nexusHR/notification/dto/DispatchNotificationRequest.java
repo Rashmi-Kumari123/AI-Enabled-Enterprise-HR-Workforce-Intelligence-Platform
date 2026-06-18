@@ -6,7 +6,6 @@ import nexusHR.notification.enums.NotificationType;
 public record DispatchNotificationRequest(
         @NotNull NotificationAudience audience,
         String recipientEmail,
-        String recipientPhone,
         @NotBlank String title,
         @NotBlank String message,
         @NotNull NotificationType type,

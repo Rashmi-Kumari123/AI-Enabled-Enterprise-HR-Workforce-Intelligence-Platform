@@ -28,9 +28,12 @@ public class LeaveBalanceService {
         upsertBalance(employeeId, LeaveType.ANNUAL, year, ANNUAL_ENTITLEMENT);
         upsertBalance(employeeId, LeaveType.SICK, year, SICK_ENTITLEMENT);
     }
-    @Transactional(readOnly = true)
+    @Transactional
     public List<LeaveBalanceResponse> getBalances(Long employeeId) {
         int year = LocalDate.now().getYear();
+        if (leaveBalanceRepository.findByEmployeeIdAndBalanceYear(employeeId, year).isEmpty()) {
+            seedBalancesForEmployee(employeeId);
+        }
         return leaveBalanceRepository.findByEmployeeIdAndBalanceYear(employeeId, year).stream()
                 .map(this::toResponse)
                 .toList();
@@ -50,20 +53,38 @@ public class LeaveBalanceService {
         if (leaveType == LeaveType.UNPAID) {
             return;
         }
-        int requestedDays = (int) ChronoUnit.DAYS.between(startDate, endDate) + 1;
+        int year = startDate.getYear();
         LeaveBalance balance = leaveBalanceRepository
-                .findByEmployeeIdAndLeaveTypeAndBalanceYear(employeeId, leaveType, startDate.getYear())
-                .orElseThrow(() -> new ApiException(
-                        HttpStatus.BAD_REQUEST, "No leave balance configured for " + leaveType));
-        if (balance.getRemainingDays() < requestedDays) {
+                .findByEmployeeIdAndLeaveTypeAndBalanceYear(employeeId, leaveType, year)
+                .orElse(null);
+        if (balance == null) {
+            if (leaveType == LeaveType.ANNUAL || leaveType == LeaveType.SICK) {
+                seedBalancesForEmployee(employeeId);
+                balance = leaveBalanceRepository
+                        .findByEmployeeIdAndLeaveTypeAndBalanceYear(employeeId, leaveType, year)
+                        .orElseThrow(() -> new ApiException(
+                                HttpStatus.BAD_REQUEST, "No leave balance configured for " + leaveType));
+            } else {
+                return;
+            }
+        }
+        int requestedDays = inclusiveDaysBetween(startDate, endDate);
+        int pendingDays = pendingDaysForType(employeeId, leaveType);
+        int available = balance.getRemainingDays() - pendingDays;
+        if (available < requestedDays) {
             throw new ApiException(
                     HttpStatus.BAD_REQUEST,
                     "Insufficient "
                             + leaveType
                             + " balance. Requested "
                             + requestedDays
-                            + ", remaining "
-                            + balance.getRemainingDays());
+                            + ", available "
+                            + available
+                            + " ("
+                            + balance.getRemainingDays()
+                            + " remaining, "
+                            + pendingDays
+                            + " pending)");
         }
     }
     @Transactional
@@ -71,13 +92,25 @@ public class LeaveBalanceService {
         if (leaveType == LeaveType.UNPAID) {
             return;
         }
-        int days = (int) ChronoUnit.DAYS.between(startDate, endDate) + 1;
+        int days = inclusiveDaysBetween(startDate, endDate);
         LeaveBalance balance = leaveBalanceRepository
                 .findByEmployeeIdAndLeaveTypeAndBalanceYear(employeeId, leaveType, startDate.getYear())
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "Leave balance not found"));
         balance.setUsedDays(balance.getUsedDays() + days);
         balance.setRemainingDays(balance.getEntitledDays() - balance.getUsedDays());
         leaveBalanceRepository.save(balance);
+    }
+
+    private int pendingDaysForType(Long employeeId, LeaveType leaveType) {
+        return leaveRequestRepository.findByEmployeeIdOrderBySubmittedAtDesc(employeeId).stream()
+                .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
+                .filter(leave -> leave.getLeaveType() == leaveType)
+                .mapToInt(leave -> inclusiveDaysBetween(leave.getStartDate(), leave.getEndDate()))
+                .sum();
+    }
+
+    private static int inclusiveDaysBetween(LocalDate startDate, LocalDate endDate) {
+        return (int) ChronoUnit.DAYS.between(startDate, endDate) + 1;
     }
 
     private void upsertBalance(Long employeeId, LeaveType leaveType, int year, int entitledDays) {

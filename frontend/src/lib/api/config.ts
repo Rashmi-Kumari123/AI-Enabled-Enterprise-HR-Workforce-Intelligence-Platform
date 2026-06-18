@@ -5,6 +5,6 @@ export const apiConfig = {
   leave: import.meta.env.VITE_LEAVE_API_URL ?? 'http://localhost:8085',
   payroll: import.meta.env.VITE_PAYROLL_API_URL ?? 'http://localhost:8083',
   performance: import.meta.env.VITE_PERFORMANCE_API_URL ?? 'http://localhost:8086',
-  notifications: import.meta.env.VITE_NOTIFICATION_API_URL ?? 'http://localhost:8087',
+  notifications: import.meta.env.VITE_NOTIFICATION_API_URL ?? 'http://localhost:8089',
   aiInsights: import.meta.env.VITE_AI_INSIGHTS_API_URL ?? 'http://localhost:8088',
 } as const

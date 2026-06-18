@@ -1,20 +1,33 @@
 package nexusHR.performance.service;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import nexusHR.performance.enums.FeedbackStatus;
+import nexusHR.performance.enums.FeedbackType;
 import nexusHR.performance.enums.RatingCriterion;
 import nexusHR.performance.enums.ReviewStatus;
 import nexusHR.performance.dto.CreateReviewRequest;
+import nexusHR.performance.dto.NotificationDispatchPayload;
 import nexusHR.performance.dto.RatingItemRequest;
 import nexusHR.performance.dto.ReviewResponse;
 import nexusHR.performance.dto.ScorecardResponse;
 import nexusHR.performance.dto.SetRatingsRequest;
+import nexusHR.performance.dto.TrendPointResponse;
 import nexusHR.performance.dto.UpdateReviewRequest;
+import nexusHR.performance.entity.PerformanceFeedback;
+import nexusHR.performance.entity.PerformanceFeedbackRating;
 import nexusHR.performance.entity.PerformanceRating;
 import nexusHR.performance.entity.PerformanceReview;
 import nexusHR.performance.exception.ApiException;
+import nexusHR.performance.integration.EmployeeServiceClient;
+import nexusHR.performance.integration.NotificationClient;
+import nexusHR.performance.repository.PerformanceFeedbackRepository;
 import nexusHR.performance.repository.PerformanceReviewRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -24,6 +37,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PerformanceReviewService {
     private final PerformanceReviewRepository reviewRepository;
+    private final PerformanceFeedbackRepository feedbackRepository;
+    private final PerformanceFeedbackService feedbackService;
+    private final EmployeeServiceClient employeeServiceClient;
+    private final NotificationClient notificationClient;
+
     @Transactional
     public ReviewResponse create(CreateReviewRequest request, String reviewerEmail) {
         if (reviewRepository
@@ -39,15 +57,29 @@ public class PerformanceReviewService {
                             + " "
                             + request.reviewYear());
         }
+        var employee = employeeServiceClient.fetchEmployee(request.employeeId());
+        String employeeEmail = request.employeeEmail() != null && !request.employeeEmail().isBlank()
+                ? request.employeeEmail().trim().toLowerCase()
+                : employee != null ? employee.email() : null;
+        if (employeeEmail == null || employeeEmail.isBlank()) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "Employee email is required. Ensure employee-service is running or pass employeeEmail.");
+        }
+
         PerformanceReview review = new PerformanceReview();
         review.setEmployeeId(request.employeeId());
-        review.setReviewerEmail(reviewerEmail);
+        review.setReviewerEmail(reviewerEmail.toLowerCase());
         review.setReviewYear(request.reviewYear());
         review.setReviewQuarter(request.reviewQuarter());
         review.setGoals(request.goals());
         review.setStatus(ReviewStatus.DRAFT);
-        return ReviewResponse.from(reviewRepository.save(review));
+        PerformanceReview saved = reviewRepository.save(review);
+
+        feedbackService.createDefaultSlots(saved, employeeEmail, reviewerEmail.toLowerCase());
+        return ReviewResponse.from(saved);
     }
+
     @Transactional
     public ReviewResponse update(Long id, UpdateReviewRequest request) {
         PerformanceReview review = loadDraft(id);
@@ -75,19 +107,49 @@ public class PerformanceReviewService {
             review.getRatings().add(rating);
         }
         review.setOverallRating(RatingCalculator.overallAverage(review.getRatings()));
+        feedbackService.syncManagerFeedbackFromReview(review, request);
         return ReviewResponse.from(reviewRepository.save(review));
     }
 
     @Transactional
     public ReviewResponse submit(Long id) {
         PerformanceReview review = loadDraft(id);
+        boolean hasManagerRatings = !review.getRatings().isEmpty()
+                || feedbackRepository.findByReviewIdOrderByFeedbackTypeAscRespondentEmailAsc(id).stream()
+                        .anyMatch(f -> f.getFeedbackType() == FeedbackType.MANAGER
+                                && f.getStatus() == FeedbackStatus.SUBMITTED);
+        if (!hasManagerRatings) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Add manager ratings before submitting the review");
+        }
         if (review.getRatings().isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Add ratings before submitting the review");
+            feedbackRepository
+                    .findByReviewIdOrderByFeedbackTypeAscRespondentEmailAsc(id)
+                    .stream()
+                    .filter(f -> f.getFeedbackType() == FeedbackType.MANAGER && f.getStatus() == FeedbackStatus.SUBMITTED)
+                    .findFirst()
+                    .ifPresent(feedbackService::syncManagerRatingsToReviewViaFeedback);
         }
         review.setOverallRating(RatingCalculator.overallAverage(review.getRatings()));
         review.setStatus(ReviewStatus.SUBMITTED);
         review.setSubmittedAt(Instant.now());
-        return ReviewResponse.from(reviewRepository.save(review));
+        PerformanceReview saved = reviewRepository.save(review);
+
+        var employee = employeeServiceClient.fetchEmployee(saved.getEmployeeId());
+        if (employee != null && employee.email() != null) {
+            notificationClient.dispatch(new NotificationDispatchPayload(
+                    "USER",
+                    employee.email(),
+                    "Performance review submitted",
+                    "Your manager submitted the Q"
+                            + saved.getReviewQuarter()
+                            + " "
+                            + saved.getReviewYear()
+                            + " review. Complete self-assessment and acknowledge when ready.",
+                    "PERFORMANCE_REVIEW",
+                    "REVIEW",
+                    saved.getId()));
+        }
+        return ReviewResponse.from(saved);
     }
 
     @Transactional
@@ -97,6 +159,13 @@ public class PerformanceReviewService {
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Review not found"));
         if (review.getStatus() != ReviewStatus.SUBMITTED) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Only submitted reviews can be acknowledged");
+        }
+        boolean selfSubmitted = feedbackRepository
+                .findByReviewIdOrderByFeedbackTypeAscRespondentEmailAsc(id)
+                .stream()
+                .anyMatch(f -> f.getFeedbackType() == FeedbackType.SELF && f.getStatus() == FeedbackStatus.SUBMITTED);
+        if (!selfSubmitted) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Submit your self-assessment before acknowledging the review");
         }
         review.setStatus(ReviewStatus.ACKNOWLEDGED);
         review.setAcknowledgedAt(Instant.now());
@@ -124,16 +193,52 @@ public class PerformanceReviewService {
                 .filter(r -> r.status() == ReviewStatus.SUBMITTED || r.status() == ReviewStatus.ACKNOWLEDGED)
                 .toList();
 
-        Double avgOverall = reviewRepository.averageOverallRating(employeeId).orElse(null);
+        List<PerformanceReview> reviewEntities =
+                reviewRepository.findByEmployeeIdOrderByReviewYearDescReviewQuarterDesc(employeeId).stream()
+                        .filter(r -> r.getStatus() == ReviewStatus.SUBMITTED || r.getStatus() == ReviewStatus.ACKNOWLEDGED)
+                        .toList();
 
-        var allRatings = reviewRepository.findByEmployeeIdOrderByReviewYearDescReviewQuarterDesc(employeeId).stream()
-                .filter(r -> r.getStatus() == ReviewStatus.SUBMITTED || r.getStatus() == ReviewStatus.ACKNOWLEDGED)
+        List<PerformanceRating> legacyRatings = reviewEntities.stream()
                 .flatMap(r -> r.getRatings().stream())
                 .toList();
+        List<PerformanceFeedbackRating> feedbackRatings = reviewEntities.stream()
+                .flatMap(r -> r.getFeedback().stream())
+                .filter(f -> f.getStatus() == FeedbackStatus.SUBMITTED)
+                .flatMap(f -> f.getRatings().stream())
+                .toList();
+
+        List<PerformanceFeedbackRating> allFeedbackRatings = new ArrayList<>(feedbackRatings);
+        Map<RatingCriterion, java.math.BigDecimal> byCriterion;
+        if (!allFeedbackRatings.isEmpty()) {
+            byCriterion = RatingCalculator.averageByCriterionFromFeedback(allFeedbackRatings);
+        } else {
+            byCriterion = RatingCalculator.averageByCriterion(legacyRatings);
+        }
+
+        Map<FeedbackType, List<PerformanceFeedbackRating>> byType = new EnumMap<>(FeedbackType.class);
+        reviewEntities.stream()
+                .flatMap(r -> r.getFeedback().stream())
+                .filter(f -> f.getStatus() == FeedbackStatus.SUBMITTED)
+                .forEach(f -> byType
+                        .computeIfAbsent(f.getFeedbackType(), key -> new ArrayList<>())
+                        .addAll(f.getRatings()));
+
+        List<TrendPointResponse> trend = reviewEntities.stream()
+                .sorted(Comparator.comparing(PerformanceReview::getReviewYear).thenComparing(PerformanceReview::getReviewQuarter))
+                .map(r -> new TrendPointResponse(r.getReviewYear(), r.getReviewQuarter(), r.getOverallRating()))
+                .toList();
+
+        Double avgOverall = reviewRepository.averageOverallRating(employeeId).orElse(null);
 
         return ScorecardResponse.of(
-                employeeId, reviews, avgOverall, RatingCalculator.averageByCriterion(allRatings));
+                employeeId,
+                reviews,
+                avgOverall,
+                byCriterion,
+                RatingCalculator.averageByFeedbackType(byType),
+                trend);
     }
+
     private PerformanceReview loadDraft(Long id) {
         PerformanceReview review = reviewRepository
                 .findById(id)
@@ -143,8 +248,9 @@ public class PerformanceReviewService {
         }
         return review;
     }
+
     private static void validateUniqueCriteria(List<RatingItemRequest> ratings) {
-        Set<RatingCriterion> seen = new HashSet<>();
+        Set<nexusHR.performance.enums.RatingCriterion> seen = new HashSet<>();
         for (RatingItemRequest item : ratings) {
             if (!seen.add(item.criterion())) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "Duplicate rating criterion: " + item.criterion());

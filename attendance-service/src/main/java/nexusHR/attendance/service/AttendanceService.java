@@ -2,12 +2,16 @@ package nexusHR.attendance.service;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import nexusHR.attendance.dto.AttendanceRequest;
 import nexusHR.attendance.dto.AttendanceResponse;
+import nexusHR.attendance.dto.NotificationDispatchPayload;
 import nexusHR.attendance.entity.AttendanceRecord;
 import nexusHR.attendance.exception.ApiException;
+import nexusHR.attendance.integration.EmployeeServiceClient;
+import nexusHR.attendance.integration.NotificationClient;
 import nexusHR.attendance.repository.AttendanceRecordRepository;
 import nexusHR.common.enums.AttendanceStatus;
 import org.springframework.http.HttpStatus;
@@ -17,8 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class AttendanceService {
-
+    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
     private final AttendanceRecordRepository attendanceRecordRepository;
+    private final NotificationClient notificationClient;
+    private final EmployeeServiceClient employeeServiceClient;
 
     @Transactional
     public AttendanceResponse clockIn(AttendanceRequest request) {
@@ -35,7 +41,9 @@ public class AttendanceService {
         record.setClockIn(Instant.now());
         record.setStatus(AttendanceStatus.CLOCKED_IN);
         record.setNotes(request.notes());
-        return AttendanceResponse.from(attendanceRecordRepository.save(record));
+        AttendanceRecord saved = attendanceRecordRepository.save(record);
+        notifyClockEvent(saved, "ATTENDANCE_CLOCK_IN", "Checked in", "You clocked in at ");
+        return AttendanceResponse.from(saved);
     }
 
     @Transactional
@@ -50,7 +58,9 @@ public class AttendanceService {
         if (request.notes() != null && !request.notes().isBlank()) {
             record.setNotes(request.notes());
         }
-        return AttendanceResponse.from(attendanceRecordRepository.save(record));
+        AttendanceRecord saved = attendanceRecordRepository.save(record);
+        notifyClockEvent(saved, "ATTENDANCE_CLOCK_OUT", "Checked out", "You clocked out at ");
+        return AttendanceResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -66,5 +76,22 @@ public class AttendanceService {
                 .findByEmployeeIdAndWorkDate(employeeId, LocalDate.now())
                 .map(AttendanceResponse::from)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "No attendance record for today"));
+    }
+    private void notifyClockEvent(
+            AttendanceRecord record, String type, String title, String messagePrefix) {
+        var employee = employeeServiceClient.fetchEmployee(record.getEmployeeId());
+        if (employee == null || employee.email() == null) {
+            return;
+        }
+        Instant eventTime = "ATTENDANCE_CLOCK_IN".equals(type) ? record.getClockIn() : record.getClockOut();
+        String timeLabel = eventTime == null ? "now" : TIME_FORMAT.format(eventTime.atZone(java.time.ZoneId.systemDefault()));
+        notificationClient.dispatch(new NotificationDispatchPayload(
+                "USER",
+                employee.email(),
+                title,
+                messagePrefix + timeLabel + " on " + record.getWorkDate() + ".",
+                type,
+                "ATTENDANCE",
+                record.getId()));
     }
 }

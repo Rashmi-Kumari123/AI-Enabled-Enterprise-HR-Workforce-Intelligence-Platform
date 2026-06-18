@@ -50,7 +50,6 @@ public class ApprovalReminderScheduler {
             notificationService.dispatch(new DispatchNotificationRequest(
                     NotificationAudience.MANAGERS,
                     null,
-                    null,
                     title,
                     message,
                     NotificationType.APPROVAL_REMINDER,
@@ -61,7 +60,6 @@ public class ApprovalReminderScheduler {
                 notificationService.dispatch(new DispatchNotificationRequest(
                         NotificationAudience.USER,
                         leave.employeeEmail(),
-                        leave.employeePhone(),
                         "Leave approval pending",
                         "Your leave request (#" + leave.id() + ") is still awaiting manager approval.",
                         NotificationType.APPROVAL_REMINDER,

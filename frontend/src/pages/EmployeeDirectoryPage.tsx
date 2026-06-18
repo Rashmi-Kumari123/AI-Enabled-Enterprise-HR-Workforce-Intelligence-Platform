@@ -1,35 +1,45 @@
-import { Search } from 'lucide-react'
+import { Loader2, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { StatusBadge } from '@/components/dashboard/StatusBadge'
 import { DashboardHero } from '@/components/layout/DashboardHero'
 import { Input } from '@/components/ui/input'
-import { mockEmployees } from '@/data/mock-ui-data'
+import { useEmployeeDirectory } from '@/hooks/use-employee-directory'
 import { cn } from '@/lib/utils'
 
 export function EmployeeDirectoryPage() {
+  const { employees, isLoading, refetch } = useEmployeeDirectory()
   const [search, setSearch] = useState('')
   const [department, setDepartment] = useState('All')
 
   const departments = useMemo(
-    () => ['All', ...new Set(mockEmployees.map((e) => e.department))],
-    [],
+    () => ['All', ...new Set(employees.map((e) => e.departmentName).filter(Boolean) as string[])],
+    [employees],
   )
 
-  const filtered = mockEmployees.filter((emp) => {
+  const filtered = employees.filter((emp) => {
+    const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase()
     const matchesSearch =
-      emp.name.toLowerCase().includes(search.toLowerCase()) ||
-      emp.designation.toLowerCase().includes(search.toLowerCase())
-    const matchesDept = department === 'All' || emp.department === department
+      fullName.includes(search.toLowerCase()) ||
+      emp.employeeCode.toLowerCase().includes(search.toLowerCase()) ||
+      (emp.email ?? '').toLowerCase().includes(search.toLowerCase())
+    const matchesDept = department === 'All' || emp.departmentName === department
     return matchesSearch && matchesDept
   })
-
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-brand-teal" />
+      </div>
+    )
+  }
   return (
     <div>
       <DashboardHero
         eyebrow="People"
         titleHighlight="Employee"
         titleRest="Directory"
-        description="Search, filter, and browse your organization roster"
+        description={`${employees.length} employees from employee-service`}
+        onRefresh={refetch}
       />
       <div className="space-y-6 p-6 md:p-10">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
@@ -63,19 +73,19 @@ export function EmployeeDirectoryPage() {
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((emp) => (
-            <article
-              key={emp.id}
-              className="surface-panel flex gap-4 p-5 transition-shadow hover:shadow-xl"
-            >
+            <article key={emp.id} className="surface-panel flex gap-4 p-5 transition-shadow hover:shadow-xl">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-brand text-sm font-bold text-white">
-                {emp.avatar}
+                {emp.firstName[0]}
+                {emp.lastName[0]}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-semibold">{emp.name}</p>
-                <p className="text-sm text-muted-foreground">{emp.designation}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{emp.department}</p>
+                <p className="font-semibold">
+                  {emp.firstName} {emp.lastName}
+                </p>
+                <p className="text-sm text-muted-foreground">{emp.employeeCode}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{emp.departmentName ?? 'General'}</p>
                 <div className="mt-3">
-                  <StatusBadge status={emp.status} />
+                  <StatusBadge status={emp.employmentStatus} />
                 </div>
               </div>
             </article>

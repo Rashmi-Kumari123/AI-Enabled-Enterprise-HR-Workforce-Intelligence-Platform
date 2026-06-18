@@ -6,6 +6,14 @@ export type DeliveryStats = {
   totalFailed: number
   deliveryRatePercent: number
 }
+export type DispatchNotificationInput = {
+  audience: 'USER' | 'MANAGERS'
+  recipientEmail?: string
+  title: string
+  message: string
+  type?: 'SYSTEM'
+}
+
 export function fetchMyNotifications(): Promise<NotificationResponse[]> {
   return fetchAuthedJson<NotificationResponse[]>(`${apiConfig.notifications}/api/v1/notifications/me`)
 }
@@ -30,4 +38,17 @@ export function fetchDeliveryStats(): Promise<DeliveryStats> {
   return fetchAuthedJson<DeliveryStats>(
     `${apiConfig.notifications}/api/v1/notifications/delivery-stats`,
   )
+}
+export function dispatchNotification(payload: DispatchNotificationInput): Promise<NotificationResponse> {
+  return fetchAuthedJson<NotificationResponse>(`${apiConfig.notifications}/api/v1/notifications/dispatch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      audience: payload.audience,
+      recipientEmail: payload.recipientEmail,
+      title: payload.title,
+      message: payload.message,
+      type: payload.type ?? 'SYSTEM',
+    }),
+  })
 }

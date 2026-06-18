@@ -15,55 +15,36 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class MultiChannelNotificationDispatcher {
-
     private final EmailNotificationSender emailNotificationSender;
-    private final SmsNotificationSender smsNotificationSender;
     private final NotificationDeliveryRepository notificationDeliveryRepository;
 
     @Value("${app.notifications.manager-emails:manager@nexushr.com,hr@nexushr.com}")
     private String managerEmails;
 
-    @Value("${app.notifications.manager-phones:}")
-    private String managerPhones;
-
-    public List<ChannelDeliveryStatus> dispatchExternalChannels(
+    public List<ChannelDeliveryStatus> dispatchEmail(
             Notification notification,
             NotificationAudience audience,
-            String recipientEmail,
-            String recipientPhone) {
+            String recipientEmail) {
         if (audience == NotificationAudience.USER) {
-            return List.of(
-                    recordDelivery(
-                            notification,
-                            NotificationChannel.EMAIL,
-                            emailNotificationSender.send(
-                                    recipientEmail, notification.getTitle(), formatBody(notification))),
-                    recordDelivery(
-                            notification,
-                            NotificationChannel.SMS,
-                            smsNotificationSender.send(recipientPhone, formatSmsBody(notification))));
-        }
-        List<ChannelDeliveryStatus> deliveries = new java.util.ArrayList<>();
-        for (String email : splitCsv(managerEmails)) {
-            deliveries.add(recordDelivery(
+            return List.of(recordDelivery(
                     notification,
                     NotificationChannel.EMAIL,
-                    emailNotificationSender.send(email, notification.getTitle(), formatBody(notification))));
+                    emailNotificationSender.send(
+                            recipientEmail, notification.getTitle(), formatBody(notification))));
         }
-        for (String phone : splitCsv(managerPhones)) {
-            deliveries.add(recordDelivery(
-                    notification,
-                    NotificationChannel.SMS,
-                    smsNotificationSender.send(phone, formatSmsBody(notification))));
-        }
-        return deliveries;
+        return splitCsv(managerEmails).stream()
+                .map(email -> recordDelivery(
+                        notification,
+                        NotificationChannel.EMAIL,
+                        emailNotificationSender.send(email, notification.getTitle(), formatBody(notification))))
+                .toList();
     }
+
     public ChannelDeliveryStatus recordInAppDelivery(Notification notification, String recipient) {
         return recordDelivery(
-                notification,
-                NotificationChannel.IN_APP,
-                EmailSendResult.sent(recipient));
+                notification, NotificationChannel.IN_APP, EmailSendResult.sent(recipient));
     }
+
     private ChannelDeliveryStatus recordDelivery(
             Notification notification, NotificationChannel channel, EmailSendResult result) {
         NotificationDelivery delivery = new NotificationDelivery();
@@ -78,6 +59,7 @@ public class MultiChannelNotificationDispatcher {
         notificationDeliveryRepository.save(delivery);
         return new ChannelDeliveryStatus(channel, result.status(), result.recipient());
     }
+
     private static String formatBody(Notification notification) {
         StringBuilder body = new StringBuilder(notification.getMessage());
         body.append("\n\n— NexusHR");
@@ -91,10 +73,6 @@ public class MultiChannelNotificationDispatcher {
         return body.toString();
     }
 
-    private static String formatSmsBody(Notification notification) {
-        String sms = notification.getTitle() + ": " + notification.getMessage();
-        return sms.length() > 160 ? sms.substring(0, 157) + "..." : sms;
-    }
     private static List<String> splitCsv(String value) {
         if (value == null || value.isBlank()) {
             return List.of();

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 import javax.crypto.SecretKey;
+import nexusHR.auth.security.UserPrincipal;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -40,15 +41,17 @@ public class JwtService {
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .toList();
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .id(sessionId)
                 .subject(userDetails.getUsername())
                 .claim("type", "access")
                 .claim("roles", roles)
                 .issuedAt(now)
-                .expiration(expiry)
-                .signWith(signingKey)
-                .compact();
+                .expiration(expiry);
+        if (userDetails instanceof UserPrincipal principal) {
+            builder.claim("userId", principal.getId());
+        }
+        return builder.signWith(signingKey).compact();
     }
 
     public long getExpirationSeconds() {

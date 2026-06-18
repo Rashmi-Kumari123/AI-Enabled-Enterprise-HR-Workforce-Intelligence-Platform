@@ -46,8 +46,9 @@ class NotificationControllerIntegrationTest {
                 .andExpect(jsonPath("$.deliveries").isArray())
                 .andExpect(jsonPath("$.deliveries[0].channel").value("IN_APP"));
     }
+
     @Test
-    void internalDispatchWithPhoneRecordsSmsChannel() throws Exception {
+    void internalDispatchRecordsEmailDelivery() throws Exception {
         mockMvc.perform(post("/api/v1/notifications/internal/dispatch")
                         .header("X-Internal-Key", "test-internal-key")
                         .contentType(APPLICATION_JSON)
@@ -55,7 +56,6 @@ class NotificationControllerIntegrationTest {
                                 {
                                   "audience": "USER",
                                   "recipientEmail": "employee@nexushr.com",
-                                  "recipientPhone": "+15551234567",
                                   "title": "Leave approved",
                                   "message": "Your leave request was approved.",
                                   "type": "LEAVE_APPROVED",
@@ -64,7 +64,7 @@ class NotificationControllerIntegrationTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.deliveries[?(@.channel=='SMS')].status").value("SKIPPED"));
+                .andExpect(jsonPath("$.deliveries[?(@.channel=='EMAIL')]").exists());
     }
     @Test
     void deliveryStatsRequiresAdminOrHr() throws Exception {

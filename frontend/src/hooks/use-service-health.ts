@@ -11,6 +11,8 @@ const services = [
   { key: 'leave', label: 'Leave', url: apiConfig.leave, path: '/api/v1/leaves/health' },
   { key: 'payroll', label: 'Payroll', url: apiConfig.payroll, path: '/api/v1/payroll/health' },
   { key: 'performance', label: 'Performance', url: apiConfig.performance, path: '/api/v1/performance/health' },
+  { key: 'notifications', label: 'Notifications', url: apiConfig.notifications, path: '/api/v1/notifications/health' },
+  { key: 'ai-insights', label: 'AI Insights', url: apiConfig.aiInsights, path: '/api/v1/ai/health' },
 ] as const
 
 async function fetchServiceHealth(url: string, path: string): Promise<HealthResponse> {
