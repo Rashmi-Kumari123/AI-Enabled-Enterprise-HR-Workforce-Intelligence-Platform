@@ -5,11 +5,15 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import nexusHR.payroll.enums.PayslipStatus;
 import nexusHR.payroll.dto.GeneratePayslipRequest;
+import nexusHR.payroll.dto.NotificationDispatchPayload;
 import nexusHR.payroll.dto.PayrollCalculationResult;
 import nexusHR.payroll.dto.PayslipResponse;
 import nexusHR.payroll.entity.Payslip;
 import nexusHR.payroll.entity.SalaryStructure;
 import nexusHR.payroll.exception.ApiException;
+import nexusHR.payroll.integration.EmployeeServiceClient;
+import nexusHR.payroll.integration.LeaveServiceClient;
+import nexusHR.payroll.integration.NotificationClient;
 import nexusHR.payroll.repository.PayslipRepository;
 import nexusHR.payroll.repository.SalaryStructureRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +28,9 @@ public class PayrollService {
     private final PayslipRepository payslipRepository;
     private final PayrollCalculator payrollCalculator;
     private final PayslipPdfGenerator payslipPdfGenerator;
+    private final LeaveServiceClient leaveServiceClient;
+    private final EmployeeServiceClient employeeServiceClient;
+    private final NotificationClient notificationClient;
 
     @Value("${app.payroll.working-days-per-month}")
     private int defaultWorkingDays;
@@ -50,7 +57,10 @@ public class PayrollService {
                         HttpStatus.NOT_FOUND, "Salary structure not found. Configure salary before generating payslip."));
 
         int workingDays = request.workingDays() != null ? request.workingDays() : defaultWorkingDays;
-        int unpaidLeaveDays = request.unpaidLeaveDays() != null ? request.unpaidLeaveDays() : 0;
+        int unpaidLeaveDays = request.unpaidLeaveDays() != null
+                ? request.unpaidLeaveDays()
+                : leaveServiceClient.fetchUnpaidLeaveDays(
+                        request.employeeId(), request.payYear(), request.payMonth());
 
         PayrollCalculationResult calculation;
         try {
@@ -72,7 +82,9 @@ public class PayrollService {
         payslip.setGeneratedBy(generatedBy);
         payslip.setStatus(PayslipStatus.GENERATED);
 
-        return PayslipResponse.from(payslipRepository.save(payslip));
+        Payslip saved = payslipRepository.save(payslip);
+        notifyPayslipReady(saved);
+        return PayslipResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -104,7 +116,45 @@ public class PayrollService {
                 .findById(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Payslip not found"));
         payslip.setStatus(PayslipStatus.PAID);
-        return PayslipResponse.from(payslipRepository.save(payslip));
+        Payslip saved = payslipRepository.save(payslip);
+        notifyPayslipPaid(saved);
+        return PayslipResponse.from(saved);
+    }
+
+    private void notifyPayslipReady(Payslip payslip) {
+        var employee = employeeServiceClient.fetchEmployee(payslip.getEmployeeId());
+        if (employee == null || employee.email() == null) {
+            return;
+        }
+        String period = formatPeriod(payslip.getPayYear(), payslip.getPayMonth());
+        notificationClient.dispatch(new NotificationDispatchPayload(
+                "USER",
+                employee.email(),
+                "Payslip ready",
+                "Your payslip for " + period + " is ready. Net pay: " + payslip.getNetPay() + " " + payslip.getCurrency(),
+                "PAYROLL_READY",
+                "PAYSLIP",
+                payslip.getId()));
+    }
+
+    private void notifyPayslipPaid(Payslip payslip) {
+        var employee = employeeServiceClient.fetchEmployee(payslip.getEmployeeId());
+        if (employee == null || employee.email() == null) {
+            return;
+        }
+        String period = formatPeriod(payslip.getPayYear(), payslip.getPayMonth());
+        notificationClient.dispatch(new NotificationDispatchPayload(
+                "USER",
+                employee.email(),
+                "Salary credited",
+                "Your salary for " + period + " has been marked as paid.",
+                "PAYROLL_READY",
+                "PAYSLIP",
+                payslip.getId()));
+    }
+
+    private static String formatPeriod(int year, int month) {
+        return YearMonth.of(year, month).format(DateTimeFormatter.ofPattern("MMMM yyyy"));
     }
     private static void applyCalculation(Payslip payslip, PayrollCalculationResult calculation) {
         payslip.setBaseSalary(calculation.baseSalary());

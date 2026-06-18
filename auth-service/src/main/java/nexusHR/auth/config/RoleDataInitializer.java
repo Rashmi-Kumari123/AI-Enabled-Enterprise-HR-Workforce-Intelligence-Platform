@@ -5,9 +5,11 @@ import nexusHR.auth.repository.RoleRepository;
 import nexusHR.common.enums.RoleName;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Component
+@Order(1)
 @RequiredArgsConstructor
 public class RoleDataInitializer implements ApplicationRunner {
     private final RoleRepository roleRepository;

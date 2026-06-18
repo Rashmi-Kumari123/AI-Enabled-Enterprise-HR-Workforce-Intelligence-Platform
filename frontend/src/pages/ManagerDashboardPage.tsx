@@ -1,10 +1,13 @@
-import { Building2, CalendarClock, Loader2, UserCheck, Users } from 'lucide-react'
+import { Building2, CalendarClock, Check, Loader2, UserCheck, Users, X } from 'lucide-react'
+import { useState } from 'react'
 import { MetricCard } from '@/components/dashboard/MetricCard'
 import { StatusBadge } from '@/components/dashboard/StatusBadge'
 import { DashboardHero } from '@/components/layout/DashboardHero'
 import { SectionHeader } from '@/components/layout/SectionHeader'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/contexts/auth-context'
+import { useLeaveApprovals } from '@/hooks/use-leave-management'
 import { useManagerDashboard } from '@/hooks/use-manager-dashboard'
 
 export function ManagerDashboardPage() {
@@ -21,6 +24,26 @@ export function ManagerDashboardPage() {
     refetch,
   } = useManagerDashboard()
 
+  const { approveLeave, rejectLeave, isApproving, isRejecting } = useLeaveApprovals()
+  const [actingOnId, setActingOnId] = useState<number | null>(null)
+  async function handleApprove(id: number) {
+    setActingOnId(id)
+    try {
+      await approveLeave(id)
+      await refetch()
+    } finally {
+      setActingOnId(null)
+    }
+  }
+  async function handleReject(id: number) {
+    setActingOnId(id)
+    try {
+      await rejectLeave(id)
+      await refetch()
+    } finally {
+      setActingOnId(null)
+    }
+  }
   const roleLabel = hasRole('HR') ? 'HR' : hasRole('ADMIN') ? 'Admin' : 'Manager'
 
   if (isLoading) {
@@ -108,6 +131,36 @@ export function ManagerDashboardPage() {
                       <p className="mt-1 text-xs font-medium text-foreground/65">
                         {leave.leaveType} · {leave.startDate} → {leave.endDate}
                       </p>
+                      <div className="mt-3 flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="gradient"
+                          className="h-8 rounded-full"
+                          disabled={actingOnId === leave.id || isApproving || isRejecting}
+                          onClick={() => handleApprove(leave.id)}
+                        >
+                          {actingOnId === leave.id && isApproving ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Check className="h-3.5 w-3.5" />
+                          )}
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 rounded-full"
+                          disabled={actingOnId === leave.id || isApproving || isRejecting}
+                          onClick={() => handleReject(leave.id)}
+                        >
+                          {actingOnId === leave.id && isRejecting ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <X className="h-3.5 w-3.5" />
+                          )}
+                          Reject
+                        </Button>
+                      </div>
                     </li>
                   ))}
                 </ul>

@@ -8,7 +8,7 @@ export type NotificationType =
   | 'PERFORMANCE_REVIEW'
   | 'SYSTEM'
 
-export type DeliveryChannel = 'IN_APP' | 'EMAIL' | 'SMS'
+export type DeliveryChannel = 'IN_APP' | 'EMAIL'
 export type DeliveryStatus = 'SENT' | 'FAILED' | 'SKIPPED'
 export type ChannelDelivery = {
   channel: DeliveryChannel

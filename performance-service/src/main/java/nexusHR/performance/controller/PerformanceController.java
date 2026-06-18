@@ -4,10 +4,14 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import nexusHR.performance.dto.CreateReviewRequest;
+import nexusHR.performance.dto.FeedbackResponse;
+import nexusHR.performance.dto.InviteFeedbackRequest;
 import nexusHR.performance.dto.ReviewResponse;
 import nexusHR.performance.dto.ScorecardResponse;
 import nexusHR.performance.dto.SetRatingsRequest;
+import nexusHR.performance.dto.SubmitFeedbackRequest;
 import nexusHR.performance.dto.UpdateReviewRequest;
+import nexusHR.performance.service.PerformanceFeedbackService;
 import nexusHR.performance.service.PerformanceReviewService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,46 +30,93 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class PerformanceController {
     private final PerformanceReviewService performanceReviewService;
+    private final PerformanceFeedbackService performanceFeedbackService;
+
     @GetMapping("/health")
     public Map<String, String> health() {
         return Map.of("status", "UP", "service", "performance-service");
     }
+
     @PostMapping("/reviews")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
     public ReviewResponse create(@Valid @RequestBody CreateReviewRequest request, Authentication authentication) {
         return performanceReviewService.create(request, authentication.getName());
     }
+
     @PutMapping("/reviews/{id}")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
     public ReviewResponse update(@PathVariable Long id, @Valid @RequestBody UpdateReviewRequest request) {
         return performanceReviewService.update(id, request);
     }
+
     @PutMapping("/reviews/{id}/ratings")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
     public ReviewResponse setRatings(@PathVariable Long id, @Valid @RequestBody SetRatingsRequest request) {
         return performanceReviewService.setRatings(id, request);
     }
+
     @PostMapping("/reviews/{id}/submit")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
     public ReviewResponse submit(@PathVariable Long id) {
         return performanceReviewService.submit(id);
     }
+
     @PostMapping("/reviews/{id}/acknowledge")
     @PreAuthorize("hasAnyRole('EMPLOYEE', 'HR', 'ADMIN', 'MANAGER')")
     public ReviewResponse acknowledge(@PathVariable Long id) {
         return performanceReviewService.acknowledge(id);
     }
+
+    @PostMapping("/reviews/{id}/feedback/invite")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
+    public List<FeedbackResponse> inviteFeedback(
+            @PathVariable Long id, @Valid @RequestBody InviteFeedbackRequest request) {
+        return performanceFeedbackService.invite(id, request);
+    }
+
+    @GetMapping("/reviews/{id}/feedback")
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'HR', 'ADMIN', 'MANAGER')")
+    public List<FeedbackResponse> listFeedback(@PathVariable Long id) {
+        return performanceFeedbackService.listByReview(id);
+    }
+
+    @GetMapping("/feedback/pending/me")
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'HR', 'ADMIN', 'MANAGER')")
+    public List<FeedbackResponse> pendingFeedbackForMe(Authentication authentication) {
+        return performanceFeedbackService.listPendingForUser(authentication.getName());
+    }
+
+    @PutMapping("/feedback/{id}/ratings")
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'HR', 'ADMIN', 'MANAGER')")
+    public FeedbackResponse setFeedbackRatings(
+            @PathVariable Long id,
+            @Valid @RequestBody SetRatingsRequest request,
+            Authentication authentication) {
+        return performanceFeedbackService.setRatings(id, request, authentication.getName());
+    }
+
+    @PostMapping("/feedback/{id}/submit")
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'HR', 'ADMIN', 'MANAGER')")
+    public FeedbackResponse submitFeedback(
+            @PathVariable Long id,
+            @RequestBody(required = false) SubmitFeedbackRequest request,
+            Authentication authentication) {
+        return performanceFeedbackService.submit(id, request, authentication.getName());
+    }
+
     @GetMapping("/reviews/{id}")
     @PreAuthorize("hasAnyRole('EMPLOYEE', 'HR', 'ADMIN', 'MANAGER')")
     public ReviewResponse getById(@PathVariable Long id) {
         return performanceReviewService.findById(id);
     }
+
     @GetMapping("/reviews/employee/{employeeId}")
     @PreAuthorize("hasAnyRole('EMPLOYEE', 'HR', 'ADMIN', 'MANAGER')")
     public List<ReviewResponse> listByEmployee(@PathVariable Long employeeId) {
         return performanceReviewService.findByEmployee(employeeId);
     }
+
     @GetMapping("/reviews/employee/{employeeId}/scorecard")
     @PreAuthorize("hasAnyRole('EMPLOYEE', 'HR', 'ADMIN', 'MANAGER')")
     public ScorecardResponse scorecard(@PathVariable Long employeeId) {

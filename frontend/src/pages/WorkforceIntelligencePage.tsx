@@ -1,27 +1,103 @@
-import { Brain, GraduationCap, HeartPulse, Sparkles, TrendingUp } from 'lucide-react'
+import { Brain, GraduationCap, HeartPulse, Loader2, Sparkles, TrendingUp } from 'lucide-react'
 import { AiInsightBanner } from '@/components/dashboard/AiInsightBanner'
 import { MetricCard } from '@/components/dashboard/MetricCard'
 import { DashboardHero } from '@/components/layout/DashboardHero'
-import { mockAiCards } from '@/data/mock-ui-data'
+import { useAuth } from '@/contexts/auth-context'
+import { useWorkforceIntelligence } from '@/hooks/use-workforce-intelligence'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+
 const icons = [Brain, GraduationCap, HeartPulse, TrendingUp, Sparkles]
+
 export function WorkforceIntelligencePage() {
+  const { hasRole } = useAuth()
+  const allowed = hasRole('HR') || hasRole('ADMIN') || hasRole('MANAGER')
+  const { isLoading, isError, error, attrition, engagement, skills, refetch } = useWorkforceIntelligence()
+
+  if (!allowed) {
+    return (
+      <div className="p-10">
+        <Card className="surface-panel">
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            AI Workforce Intelligence is available to HR, Manager, and Admin roles. Log in with an account like{' '}
+            <span className="font-medium text-foreground">hr@nexushr.com</span> or{' '}
+            <span className="font-medium text-foreground">manager@nexushr.com</span>.
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-brand-teal" />
+      </div>
+    )
+  }
+
+  const topRisk = attrition?.predictions?.[0]
+  const aiCards = [
+    {
+      title: 'Attrition Prediction',
+      value: attrition ? `${attrition.highRiskCount} high` : '—',
+      subtitle: topRisk ? `${topRisk.employeeName} · ${topRisk.riskLevel}` : 'Team scan',
+      accent: 'purple' as const,
+    },
+    {
+      title: 'Skill Gap Analysis',
+      value: skills ? `${skills.totalGapCount} gaps` : '—',
+      subtitle: `${skills?.employeesWithGaps ?? 0} employees affected`,
+      accent: 'teal' as const,
+    },
+    {
+      title: 'Engagement Score',
+      value: engagement ? `${engagement.averageEngagementScore.toFixed(0)}/100` : '—',
+      subtitle: `${engagement?.highEngagementCount ?? 0} high engagement`,
+      accent: 'teal' as const,
+    },
+    {
+      title: 'Employees Analyzed',
+      value: attrition?.employeeCount ?? 0,
+      subtitle: 'Attrition model coverage',
+      accent: 'purple' as const,
+    },
+    {
+      title: 'Development Focus',
+      value: skills?.employeesWithGaps ?? 0,
+      subtitle: 'Need skill development',
+      accent: 'teal' as const,
+    },
+  ]
+
   return (
     <div>
       <DashboardHero
         eyebrow="AI Intelligence"
         titleHighlight="AI Workforce"
         titleRest="Intelligence"
-        description="Predictive analytics, skill gaps, engagement scoring, and promotion readiness"
+        description="Live predictive analytics from ai-insights-service"
+        onRefresh={refetch}
       />
       <div className="space-y-8 p-6 md:p-10">
-        <AiInsightBanner message="Sales department attrition risk elevated — review retention strategies for 3 flagged employees." />
+        {isError ? (
+          <p className="rounded-xl bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+            {error}
+          </p>
+        ) : null}
+
+        <AiInsightBanner
+          message={
+            topRisk
+              ? `${topRisk.employeeName} (${topRisk.department ?? 'General'}) shows ${topRisk.riskLevel} attrition risk — score ${topRisk.riskScore}/100.`
+              : 'Team workforce intelligence is up to date.'
+          }
+        />
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          {mockAiCards.map((card, i) => {
+          {aiCards.map((card, i) => {
             const Icon = icons[i] ?? Sparkles
             return (
               <MetricCard
@@ -54,19 +130,17 @@ export function WorkforceIntelligencePage() {
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2">
-          {['Attrition heatmap', 'Skill gap matrix', 'Engagement radar', 'Productivity forecast'].map(
-            (viz) => (
-              <div
-                key={viz}
-                className={cn(
-                  'surface-panel flex h-48 items-center justify-center rounded-2xl',
-                  'bg-gradient-to-br from-teal-500/5 via-transparent to-violet-500/10',
-                )}
-              >
-                <p className="text-sm font-medium text-muted-foreground">{viz} · AI visualization</p>
-              </div>
-            ),
-          )}
+          {['Attrition predictions', 'Engagement scores', 'Skill gap matrix', 'Team readiness'].map((viz) => (
+            <div
+              key={viz}
+              className={cn(
+                'surface-panel flex h-48 items-center justify-center rounded-2xl',
+                'bg-gradient-to-br from-teal-500/5 via-transparent to-violet-500/10',
+              )}
+            >
+              <p className="text-sm font-medium text-muted-foreground">{viz} · live AI data</p>
+            </div>
+          ))}
         </div>
 
         <p className="text-center text-sm text-muted-foreground">

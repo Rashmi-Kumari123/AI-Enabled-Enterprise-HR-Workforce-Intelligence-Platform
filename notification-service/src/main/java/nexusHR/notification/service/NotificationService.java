@@ -88,7 +88,6 @@ public class NotificationService {
             }
             return createAndDeliver(
                     normalize(request.recipientEmail()),
-                    request.recipientPhone(),
                     request.title(),
                     request.message(),
                     request.type(),
@@ -97,7 +96,6 @@ public class NotificationService {
                     NotificationAudience.USER,
                     false);
         }
-
         Notification saved = persist(
                 "managers@nexushr.local",
                 request.title(),
@@ -109,22 +107,20 @@ public class NotificationService {
         NotificationMessage message = NotificationMessage.from(saved);
         notificationDeliveryService.broadcastToManagers(message);
         multiChannelNotificationDispatcher.recordInAppDelivery(saved, "managers@nexushr.local");
-        multiChannelNotificationDispatcher.dispatchExternalChannels(saved, NotificationAudience.MANAGERS, null, null);
+        multiChannelNotificationDispatcher.dispatchEmail(saved, NotificationAudience.MANAGERS, null);
         return toResponse(saved);
     }
     @Transactional
     public NotificationResponse notifyUser(
             String recipientEmail,
-            String recipientPhone,
             String title,
             String message,
             NotificationType type,
             String referenceType,
             Long referenceId) {
         return createAndDeliver(
-                recipientEmail, recipientPhone, title, message, type, referenceType, referenceId, NotificationAudience.USER, false);
+                recipientEmail, title, message, type, referenceType, referenceId, NotificationAudience.USER, false);
     }
-
     @Transactional
     public NotificationResponse notifyManagers(
             String title,
@@ -133,11 +129,10 @@ public class NotificationService {
             String referenceType,
             Long referenceId) {
         return dispatch(new DispatchNotificationRequest(
-                NotificationAudience.MANAGERS, null, null, title, message, type, referenceType, referenceId));
+                NotificationAudience.MANAGERS, null, title, message, type, referenceType, referenceId));
     }
     private NotificationResponse createAndDeliver(
             String recipientEmail,
-            String recipientPhone,
             String title,
             String message,
             NotificationType type,
@@ -149,8 +144,7 @@ public class NotificationService {
         NotificationMessage payload = NotificationMessage.from(saved);
         notificationDeliveryService.sendToUser(recipientEmail, payload);
         multiChannelNotificationDispatcher.recordInAppDelivery(saved, recipientEmail);
-        multiChannelNotificationDispatcher.dispatchExternalChannels(
-                saved, audience, recipientEmail, recipientPhone);
+        multiChannelNotificationDispatcher.dispatchEmail(saved, audience, recipientEmail);
         return toResponse(saved);
     }
     private Notification persist(

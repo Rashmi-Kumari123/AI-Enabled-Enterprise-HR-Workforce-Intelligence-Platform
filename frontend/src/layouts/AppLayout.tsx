@@ -1,6 +1,7 @@
-import { BarChart3, Bot, Brain, Building2, Calendar, Clock, IndianRupee, LayoutDashboard, LogOut, Settings, Sparkles, UserCircle, Users } from 'lucide-react';
+import { BarChart3, Banknote, Bot, Brain, Building2, Calendar, ClipboardList, Clock, IndianRupee, LayoutDashboard, LogOut, Megaphone, Settings, Sparkles, Star, UserCircle, Users } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { BrandLogo } from '@/components/layout/BrandLogo'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/auth-context'
@@ -33,7 +34,9 @@ export function AppLayout() {
     {
       title: 'People & Time',
       items: [
-        { to: '/dashboard/directory', icon: Users, label: 'Directory' },
+        ...(isHrAdmin ? [{ to: '/dashboard/lifecycle', icon: ClipboardList, label: 'Lifecycle', roles: ['HR', 'ADMIN'] as string[] }] : []),
+        ...(isHrAdmin ? [{ to: '/dashboard/announcements', icon: Megaphone, label: 'Announcements', roles: ['HR', 'ADMIN'] as string[] }] : []),
+        { to: '/dashboard/directory', icon: Users, label: 'Directory', roles: ['HR', 'ADMIN', 'MANAGER'] },
         { to: '/dashboard/attendance', icon: Clock, label: 'Attendance' },
         { to: '/dashboard/leave', icon: Calendar, label: 'Leave' },
       ],
@@ -41,14 +44,16 @@ export function AppLayout() {
     {
       title: 'Compensation & Growth',
       items: [
-        { to: '/dashboard/payroll', icon: IndianRupee, label: 'Payroll' },
-        { to: '/dashboard/performance', icon: Sparkles, label: 'Performance' },
+        { to: '/dashboard/payroll', end: true, icon: IndianRupee, label: 'Payroll' },
+        ...(isHrAdmin ? [{ to: '/dashboard/payroll/operations', icon: Banknote, label: 'Payroll Ops', roles: ['HR', 'ADMIN'] as string[] }] : []),
+        { to: '/dashboard/performance', end: true, icon: Sparkles, label: 'Performance' },
+        ...(isManager ? [{ to: '/dashboard/performance/operations', icon: Star, label: 'Review Ops', roles: ['HR', 'ADMIN', 'MANAGER'] as string[] }] : []),
       ],
     },
     {
       title: 'Intelligence',
       items: [
-        { to: '/dashboard/intelligence', icon: Brain, label: 'AI Intelligence' },
+        { to: '/dashboard/intelligence', icon: Brain, label: 'AI Intelligence', roles: ['HR', 'ADMIN', 'MANAGER'] },
         ...(isManager ? [{ to: '/dashboard/insights', icon: Brain, label: 'Deep Insights' }] : []),
         { to: '/dashboard/ai-assistant', icon: Bot, label: 'Nexus AI' },
         ...(isManager ? [{ to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' }] : []),
@@ -74,7 +79,10 @@ export function AppLayout() {
   return (
     <div className="flex min-h-svh bg-mesh">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border/60 bg-card p-4 lg:flex">
-        <BrandLogo showTagline />
+        <div className="flex items-center justify-between gap-2">
+          <BrandLogo showTagline />
+          <NotificationBell />
+        </div>
 
         <nav className="mt-6 flex flex-1 flex-col gap-5 overflow-y-auto">
           {navSections.map((section) => (
@@ -83,7 +91,9 @@ export function AppLayout() {
                 {section.title}
               </p>
               <div className="flex flex-col gap-0.5">
-                {section.items.map((item) => (
+                {section.items
+                  .filter((item) => !item.roles || item.roles.some((role) => hasRole(role)))
+                  .map((item) => (
                   <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
                     <item.icon className="h-4 w-4 shrink-0" />
                     {item.label}
@@ -118,6 +128,7 @@ export function AppLayout() {
         <header className="flex items-center justify-between border-b border-border/60 bg-card px-4 py-3 lg:hidden">
           <BrandLogo linkTo="/dashboard" />
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <ThemeToggle compact />
             <Button variant="outline" size="sm" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />

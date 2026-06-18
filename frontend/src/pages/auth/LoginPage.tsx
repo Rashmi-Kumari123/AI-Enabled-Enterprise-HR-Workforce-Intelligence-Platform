@@ -105,8 +105,11 @@ export function LoginPage() {
         </Link>
       </p>
       <p className="mt-3 text-center text-xs text-muted-foreground">
-        Tip: <code className="rounded bg-muted px-1">hr</code> or <code className="rounded bg-muted px-1">manager</code> in
-        email for elevated roles
+        Demo: <code className="rounded bg-muted px-1">hr@nexushr.com</code> ·{' '}
+        <code className="rounded bg-muted px-1">manager@nexushr.com</code> ·{' '}
+        <code className="rounded bg-muted px-1">employee@nexushr.com</code>
+        <br />
+        Password: <code className="rounded bg-muted px-1">NexusHR@2026</code>
       </p>
     </div>
   )

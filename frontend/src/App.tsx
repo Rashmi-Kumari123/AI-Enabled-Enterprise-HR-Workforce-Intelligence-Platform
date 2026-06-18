@@ -12,11 +12,15 @@ import { AttritionInsightsPage } from '@/pages/AttritionInsightsPage'
 import { DashboardRouter } from '@/pages/DashboardRouter'
 import { EmployeeDashboardPage } from '@/pages/EmployeeDashboardPage'
 import { EmployeeDirectoryPage } from '@/pages/EmployeeDirectoryPage'
+import { EmployeeLifecyclePage } from '@/pages/EmployeeLifecyclePage'
+import { HrAnnouncementsPage } from '@/pages/HrAnnouncementsPage'
 import { HrAdminDashboardPage } from '@/pages/HrAdminDashboardPage'
 import { LeaveManagementPage } from '@/pages/LeaveManagementPage'
 import { ManagerDashboardPage } from '@/pages/ManagerDashboardPage'
 import { NotificationsPage } from '@/pages/NotificationsPage'
+import { HrPayrollPage } from '@/pages/HrPayrollPage'
 import { PayrollPage } from '@/pages/PayrollPage'
+import { ManagerPerformancePage } from '@/pages/ManagerPerformancePage'
 import { PerformancePage } from '@/pages/PerformancePage'
 import { ProfileSettingsPage } from '@/pages/ProfileSettingsPage'
 import { SplashPage } from '@/pages/SplashPage'
@@ -42,10 +46,14 @@ export default function App() {
           <Route path="/dashboard/manager" element={<ManagerDashboardPage />} />
           <Route path="/dashboard/hr-admin" element={<HrAdminDashboardPage />} />
           <Route path="/dashboard/directory" element={<EmployeeDirectoryPage />} />
+          <Route path="/dashboard/lifecycle" element={<EmployeeLifecyclePage />} />
+          <Route path="/dashboard/announcements" element={<HrAnnouncementsPage />} />
           <Route path="/dashboard/attendance" element={<AttendancePage />} />
           <Route path="/dashboard/leave" element={<LeaveManagementPage />} />
           <Route path="/dashboard/payroll" element={<PayrollPage />} />
+          <Route path="/dashboard/payroll/operations" element={<HrPayrollPage />} />
           <Route path="/dashboard/performance" element={<PerformancePage />} />
+          <Route path="/dashboard/performance/operations" element={<ManagerPerformancePage />} />
           <Route path="/dashboard/intelligence" element={<WorkforceIntelligencePage />} />
           <Route path="/dashboard/insights" element={<AttritionInsightsPage />} />
           <Route path="/dashboard/ai-assistant" element={<AiAssistantPage />} />

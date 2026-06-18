@@ -1,82 +1,67 @@
 import { useQuery } from '@tanstack/react-query'
-import type { AttritionReport, EngagementReport, SkillGapReport } from '@/types/ai-insights'
-const mockAttrition: AttritionReport = {
-  employeeCount: 5,
-  highRiskCount: 1,
-  mediumRiskCount: 2,
-  predictions: [
-    {
-      employeeId: 4,
-      employeeName: 'Vikram Singh',
-      department: 'Sales',
-      riskScore: 78,
-      riskLevel: 'HIGH',
-      aiSummary: 'Elevated attrition risk driven by attendance variance and pending leave patterns.',
-      riskFactors: ['Attendance below team average', 'Extended leave requests', 'Tenure under 18 months'],
-      recommendations: ['Schedule stay interview', 'Review compensation band', 'Assign mentor'],
-      aiEnabled: false,
-      provider: 'HEURISTIC',
-    },
-  ],
-}
-const mockEngagement: EngagementReport = {
-  averageEngagementScore: 72,
-  highEngagementCount: 2,
-  lowEngagementCount: 1,
-  scores: [
-    {
-      employeeId: 1,
-      employeeName: 'Rashmi Kumari',
-      department: 'Engineering',
-      engagementScore: 85,
-      engagementLevel: 'HIGH',
-      scoreFactors: ['Strong attendance', 'High performance ratings'],
-      recommendations: ['Consider leadership track'],
-    },
-  ],
-}
-const mockSkills: SkillGapReport = {
-  employeeCount: 5,
-  employeesWithGaps: 2,
-  totalGapCount: 4,
-  analyses: [
-    {
-      employeeId: 1,
-      employeeName: 'Rashmi Kumari',
-      department: 'Engineering',
-      overallReadinessPercent: 88,
-      gapCount: 1,
-      gaps: [
-        {
-          skillCode: 'LEADERSHIP',
-          skill: 'Team Leadership',
-          currentScore: 3.2,
-          targetScore: 4.0,
-          gap: 0.8,
-          priority: 'MEDIUM',
-          recommendation: 'Enroll in management fundamentals workshop',
-        },
-      ],
-      developmentPlan: ['Complete Q2 leadership training', 'Lead cross-team initiative'],
-    },
-  ],
-}
+import { useAuth } from '@/contexts/auth-context'
+import * as aiApi from '@/lib/api/ai-insights-api'
+import { ApiError } from '@/lib/api/http'
+
+const LIVE_REFETCH_MS = 60_000
+
 export function useWorkforceIntelligence() {
-  const query = useQuery({
-    queryKey: ['workforce-intelligence'],
-    queryFn: async () => ({
-      attrition: mockAttrition,
-      engagement: mockEngagement,
-      skills: mockSkills,
-    }),
+  const { hasRole } = useAuth()
+  const enabled = hasRole('HR') || hasRole('ADMIN') || hasRole('MANAGER')
+
+  const attritionQuery = useQuery({
+    queryKey: ['ai-attrition-team'],
+    queryFn: () => aiApi.fetchTeamAttrition(),
+    enabled,
+    retry: false,
+    refetchInterval: LIVE_REFETCH_MS,
   })
+
+  const engagementQuery = useQuery({
+    queryKey: ['ai-engagement-team'],
+    queryFn: () => aiApi.fetchTeamEngagement(),
+    enabled,
+    retry: false,
+    refetchInterval: LIVE_REFETCH_MS,
+  })
+
+  const skillsQuery = useQuery({
+    queryKey: ['ai-skills-team'],
+    queryFn: () => aiApi.fetchTeamSkillGaps(),
+    enabled,
+    retry: false,
+    refetchInterval: LIVE_REFETCH_MS,
+  })
+
+  const isLoading = enabled && (attritionQuery.isLoading || engagementQuery.isLoading || skillsQuery.isLoading)
+  const isError = attritionQuery.isError || engagementQuery.isError || skillsQuery.isError
+  const error =
+    [attritionQuery.error, engagementQuery.error, skillsQuery.error].find((e) => e instanceof ApiError) instanceof ApiError
+      ? (() => {
+          const apiErr = [attritionQuery.error, engagementQuery.error, skillsQuery.error].find(
+            (e) => e instanceof ApiError,
+          ) as ApiError
+          if (apiErr.status === 403) {
+            return 'Access denied — AI team insights require HR, Manager, or Admin role. Try logging in with hr@nexushr.com or manager@nexushr.com'
+          }
+          return apiErr.message
+        })()
+      : (attritionQuery.error instanceof ApiError ? attritionQuery.error.message : null) ??
+        (engagementQuery.error instanceof ApiError ? engagementQuery.error.message : null) ??
+        (skillsQuery.error instanceof ApiError ? skillsQuery.error.message : null) ??
+        'Failed to load AI insights'
+
   return {
-    isLoading: query.isLoading,
-    isError: query.isError,
-    error: query.error instanceof Error ? query.error.message : 'Failed to load insights',
-    attrition: query.data?.attrition,
-    engagement: query.data?.engagement,
-    skills: query.data?.skills,
-    refetch: query.refetch,
+    isLoading,
+    isError,
+    error,
+    attrition: attritionQuery.data,
+    engagement: engagementQuery.data,
+    skills: skillsQuery.data,
+    refetch: () => {
+      attritionQuery.refetch()
+      engagementQuery.refetch()
+      skillsQuery.refetch()
+    },
   }
 }

@@ -48,4 +48,15 @@ public class JwtService {
     private Claims parseClaims(String token) {
         return Jwts.parser().verifyWith(signingKey).build().parseSignedClaims(token).getPayload();
     }
+
+    /** Short-lived HR token for scheduled jobs that call downstream services. */
+    public String createHrServiceToken(String email) {
+        return Jwts.builder()
+                .subject(email)
+                .claim("roles", List.of("ROLE_HR"))
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + 3_600_000))
+                .signWith(signingKey)
+                .compact();
+    }
 }

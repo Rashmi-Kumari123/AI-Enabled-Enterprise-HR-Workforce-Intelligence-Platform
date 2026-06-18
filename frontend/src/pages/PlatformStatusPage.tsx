@@ -33,7 +33,7 @@ const capabilities = [
   { label: 'Engagement & skill gaps', description: 'Workforce development intelligence', icon: Sparkles },
   { label: 'Real-time alerts', description: 'Instant in-app notifications', icon: Bell },
   { label: 'Workforce analytics', description: 'Executive HR dashboards and exports', icon: CheckCircle2 },
-  { label: 'Email & SMS delivery', description: 'Multi-channel employee communications', icon: Mail },
+  { label: 'Email & in-app delivery', description: 'Workforce alerts via notification-service', icon: Mail },
   { label: 'Accessible UI', description: 'Light and dark mode across the platform', icon: Moon },
 ] as const
 

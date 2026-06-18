@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import nexusHR.leave.dto.LeaveBalanceResponse;
 import nexusHR.leave.dto.LeaveResponse;
 import nexusHR.leave.dto.LeaveReviewRequest;
 import nexusHR.leave.dto.LeaveSubmitRequest;
@@ -42,6 +43,11 @@ public class LeaveController {
     @PreAuthorize("hasAnyRole('EMPLOYEE', 'HR', 'ADMIN', 'MANAGER')")
     public LeaveResponse getById(@PathVariable Long id) {
         return leaveService.findById(id);
+    }
+    @GetMapping("/employee/{employeeId}/balances")
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'HR', 'ADMIN', 'MANAGER')")
+    public List<LeaveBalanceResponse> balances(@PathVariable Long employeeId) {
+        return leaveService.getBalances(employeeId);
     }
 
     @GetMapping("/employee/{employeeId}")

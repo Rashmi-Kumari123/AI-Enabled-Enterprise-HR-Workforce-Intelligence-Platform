@@ -1,27 +1,63 @@
 import { apiConfig } from '@/lib/api/config'
-import { fetchAuthedJson } from '@/lib/api/authenticated'
-import type { PayslipSummary } from '@/types/hr'
-
+import { fetchAuthedBlob, fetchAuthedJson } from '@/lib/api/authenticated'
+import type { PayslipDetail, SalaryStructure } from '@/types/hr'
 const base = apiConfig.payroll
-type PayslipResponse = PayslipSummary & {
+export type SalaryStructureInput = {
   employeeId: number
-  employeeName: string
-  grossPay: number
-  netPay: number
+  baseSalary: number
+  hraPercent?: number
+  transportAllowance?: number
+  otherAllowance?: number
 }
-export async function fetchLatestPayslip(employeeId: number): Promise<PayslipSummary | null> {
-  const payslips = await fetchAuthedJson<PayslipResponse[]>(
-    `${base}/api/v1/payroll/payslips/employee/${employeeId}`,
-  )
-  if (payslips.length === 0) return null
-  const latest = payslips[0]
-  return {
-    id: latest.id,
-    payslipNumber: latest.payslipNumber,
-    payYear: latest.payYear,
-    payMonth: latest.payMonth,
-    grossPay: latest.grossPay,
-    netPay: latest.netPay,
-    status: latest.status,
-  }
+export type GeneratePayslipInput = {
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  payYear: number
+  payMonth: number
+  workingDays?: number
+  unpaidLeaveDays?: number
+}
+export async function fetchPayslips(employeeId: number): Promise<PayslipDetail[]> {
+  return fetchAuthedJson<PayslipDetail[]>(`${base}/api/v1/payroll/payslips/employee/${employeeId}`)
+}
+export async function fetchSalaryStructures(): Promise<SalaryStructure[]> {
+  return fetchAuthedJson<SalaryStructure[]>(`${base}/api/v1/payroll/salary-structures`)
+}
+
+export function fetchSalaryStructure(employeeId: number): Promise<SalaryStructure> {
+  return fetchAuthedJson(`${base}/api/v1/payroll/salary-structures/employee/${employeeId}`)
+}
+export function upsertSalaryStructure(payload: SalaryStructureInput): Promise<SalaryStructure> {
+  return fetchAuthedJson(`${base}/api/v1/payroll/salary-structures`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+export function generatePayslip(payload: GeneratePayslipInput): Promise<PayslipDetail> {
+  return fetchAuthedJson(`${base}/api/v1/payroll/payslips/generate`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+export function markPayslipPaid(payslipId: number): Promise<PayslipDetail> {
+  return fetchAuthedJson(`${base}/api/v1/payroll/payslips/${payslipId}/mark-paid`, {
+    method: 'POST',
+  })
+}
+export function downloadPayslipPdf(payslipId: number): Promise<Blob> {
+  return fetchAuthedBlob(`${base}/api/v1/payroll/payslips/${payslipId}/download`)
+}
+export async function fetchLatestPayslip(employeeId: number): Promise<PayslipDetail | null> {
+  const payslips = await fetchPayslips(employeeId)
+  return payslips[0] ?? null
+}
+export async function downloadPayslip(payslip: PayslipDetail): Promise<void> {
+  const blob = await downloadPayslipPdf(payslip.id)
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${payslip.payslipNumber}.pdf`
+  link.click()
+  URL.revokeObjectURL(url)
 }

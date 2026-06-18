@@ -39,6 +39,11 @@ public class PayrollController {
     public SalaryStructureResponse upsertSalaryStructure(@Valid @RequestBody SalaryStructureRequest request) {
         return salaryStructureService.upsert(request);
     }
+    @GetMapping("/salary-structures")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    public List<SalaryStructureResponse> listSalaryStructures() {
+        return salaryStructureService.findAll();
+    }
     @GetMapping("/salary-structures/employee/{employeeId}")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
     public SalaryStructureResponse getSalaryStructure(@PathVariable Long employeeId) {

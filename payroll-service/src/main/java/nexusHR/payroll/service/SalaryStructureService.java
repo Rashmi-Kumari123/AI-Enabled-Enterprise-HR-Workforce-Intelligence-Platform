@@ -1,5 +1,6 @@
 package nexusHR.payroll.service;
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import nexusHR.payroll.dto.SalaryStructureRequest;
 import nexusHR.payroll.dto.SalaryStructureResponse;
@@ -32,6 +33,12 @@ public class SalaryStructureService {
                 .findByEmployeeId(employeeId)
                 .map(SalaryStructureResponse::from)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Salary structure not found for employee"));
+    }
+    @Transactional(readOnly = true)
+    public List<SalaryStructureResponse> findAll() {
+        return salaryStructureRepository.findAll().stream()
+                .map(SalaryStructureResponse::from)
+                .toList();
     }
     private static BigDecimal defaultPercent(BigDecimal value, BigDecimal fallback) {
         return value != null ? value : fallback;

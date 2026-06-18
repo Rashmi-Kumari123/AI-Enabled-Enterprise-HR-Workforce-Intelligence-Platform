@@ -3,6 +3,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import nexusHR.common.enums.EmploymentStatus;
 import nexusHR.employee.dto.DepartmentResponse;
+import nexusHR.employee.dto.EmployeeProfileUpdateRequest;
 import nexusHR.employee.dto.EmployeeRequest;
 import nexusHR.employee.dto.EmployeeResponse;
 import nexusHR.employee.entity.Department;
@@ -29,6 +30,17 @@ public class EmployeeService {
         return toResponse(getEmployee(id));
     }
     @Transactional(readOnly = true)
+    public EmployeeResponse findMyProfile(Long userId, String email) {
+        if (userId != null) {
+            return employeeRepository
+                    .findByUserId(userId)
+                    .map(this::toResponse)
+                    .orElseGet(() -> findByEmail(email));
+        }
+        return findByEmail(email);
+    }
+
+    @Transactional(readOnly = true)
     public EmployeeResponse findByEmail(String email) {
         return employeeRepository
                 .findByEmail(email.toLowerCase().trim())
@@ -49,6 +61,30 @@ public class EmployeeService {
         applyRequest(employee, request);
         return toResponse(employee);
     }
+    @Transactional
+    public EmployeeResponse updateMyProfile(Long userId, String email, EmployeeProfileUpdateRequest request) {
+        Employee employee = resolveOwnedEmployee(userId, email);
+        employee.setPhone(request.phone() != null ? request.phone().trim() : null);
+        return toResponse(employee);
+    }
+    private Employee resolveOwnedEmployee(Long userId, String email) {
+        if (userId != null) {
+            return employeeRepository
+                    .findByUserId(userId)
+                    .orElseGet(() -> employeeRepository
+                            .findByEmail(email.toLowerCase().trim())
+                            .orElseThrow(() ->
+                                    new ApiException(HttpStatus.NOT_FOUND, "No employee profile linked to this account")));
+        }
+        return employeeRepository
+                .findByEmail(email.toLowerCase().trim())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "No employee profile linked to this account"));
+    }
+    @Transactional
+    public EmployeeResponse updateMyProfile(String email, EmployeeProfileUpdateRequest request) {
+        return updateMyProfile(null, email, request);
+    }
+
     @Transactional
     public void delete(Long id) {
         Employee employee = getEmployee(id);
@@ -116,6 +152,7 @@ public class EmployeeService {
                 department != null ? department.getName() : null,
                 employee.getHireDate(),
                 employee.getEmploymentStatus(),
+                employee.isOnboardingCompleted(),
                 employee.getCreatedAt(),
                 employee.getUpdatedAt());
     }

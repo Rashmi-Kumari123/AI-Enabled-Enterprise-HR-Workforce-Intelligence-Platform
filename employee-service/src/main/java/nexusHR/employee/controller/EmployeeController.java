@@ -1,15 +1,19 @@
 package nexusHR.employee.controller;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import nexusHR.employee.dto.EmployeeProfileUpdateRequest;
 import nexusHR.employee.dto.EmployeeRequest;
 import nexusHR.employee.dto.EmployeeResponse;
+import nexusHR.employee.security.JwtService;
 import nexusHR.employee.service.EmployeeService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -23,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class EmployeeController {
     private final EmployeeService employeeService;
+    private final JwtService jwtService;
     @GetMapping
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
     public List<EmployeeResponse> listEmployees() {
@@ -30,10 +35,29 @@ public class EmployeeController {
     }
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER', 'EMPLOYEE')")
-    public EmployeeResponse getMyProfile(Authentication authentication) {
-        return employeeService.findByEmail(authentication.getName());
+    public EmployeeResponse getMyProfile(Authentication authentication, HttpServletRequest request) {
+        return employeeService.findMyProfile(extractUserId(request), authentication.getName());
     }
 
+    @PatchMapping("/me")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER', 'EMPLOYEE')")
+    public EmployeeResponse updateMyProfile(
+            Authentication authentication,
+            HttpServletRequest request,
+            @Valid @RequestBody EmployeeProfileUpdateRequest body) {
+        return employeeService.updateMyProfile(extractUserId(request), authentication.getName(), body);
+    }
+    private Long extractUserId(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) {
+            return null;
+        }
+        try {
+            return jwtService.extractUserId(header.substring(7));
+        } catch (Exception ex) {
+            return null;
+        }
+    }
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER', 'EMPLOYEE')")
     public EmployeeResponse getEmployee(@PathVariable Long id) {

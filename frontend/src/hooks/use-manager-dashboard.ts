@@ -9,11 +9,13 @@ export function useManagerDashboard() {
         queryKey: ['team-employees'],
         queryFn: () => employeeApi.fetchEmployees(),
         retry: false,
+        refetchInterval: 30_000,
       },
       {
         queryKey: ['pending-leaves'],
         queryFn: () => leaveApi.fetchPendingLeaves(),
         retry: false,
+        refetchInterval: 30_000,
       },
     ],
   })

@@ -1,10 +1,11 @@
 package nexusHR.payroll.integration;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.Collections;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-
 @Slf4j
 @Component
 public class EmployeeServiceClient {
@@ -29,12 +30,32 @@ public class EmployeeServiceClient {
             return null;
         }
     }
+    public List<EmployeeSnapshot> fetchActiveEmployees() {
+        try {
+            EmployeeSnapshot[] employees = restClient
+                    .get()
+                    .uri("/api/v1/employees/internal/active")
+                    .header("X-Internal-Key", internalKey)
+                    .retrieve()
+                    .body(EmployeeSnapshot[].class);
+            if (employees == null) {
+                return Collections.emptyList();
+            }
+            return List.of(employees).stream()
+                    .filter(employee -> employee != null && !"TERMINATED".equals(employee.employmentStatus()))
+                    .toList();
+        } catch (Exception ex) {
+            log.warn("Failed to fetch active employees for payroll: {}", ex.getMessage());
+            return Collections.emptyList();
+        }
+    }
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record EmployeeSnapshot(
             Long id,
             String employeeCode,
             String firstName,
             String lastName,
+            String email,
             String employmentStatus) {
         public String fullName() {
             return firstName + " " + lastName;
