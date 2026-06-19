@@ -394,7 +394,18 @@ AWS EKS + S3 production guide: [`deploy/aws/README.md`](deploy/aws/README.md)
 
 ---
 
-## 🔄 CI/CD
+## 🚂 Railway Deployment (Backend)
+
+Fastest path to a **live backend URL** for demos and Zidio submission:
+
+1. Create Railway project + **PostgreSQL** + **Redis**
+2. Run [`deploy/railway/provision-databases.sh`](deploy/railway/provision-databases.sh)
+3. Deploy 9 services from the same repo using [`deploy/railway/services/*.railway.json`](deploy/railway/services/)
+4. Expose **api-gateway** only → use as `VITE_*_API_URL` for frontend
+
+Full walkthrough: [`deploy/railway/README.md`](deploy/railway/README.md)
+
+---
 
 | Workflow | Trigger | Actions |
 |:---------|:--------|:--------|
@@ -430,6 +441,7 @@ AI-Enabled-Enterprise-HR-Workforce-Intelligence-Platform/
 ├── 📁 k8s/                      # Kubernetes manifests + HPA
 ├── 📁 monitoring/               # Prometheus + Grafana config
 ├── 📁 deploy/aws/               # EKS deployment guide
+├── 📁 deploy/railway/           # Railway multi-service deploy guide
 ├── 📁 scripts/                  # Build, load test, ZAP, DB init
 ├── 📁 docs/
 │   ├── API_DOCUMENTATION.md     # Full REST API reference

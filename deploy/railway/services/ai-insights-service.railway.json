@@ -1,0 +1,17 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "docker/Dockerfile.spring-service",
+    "watchPatterns": [
+      "ai-insights-service/**",
+      "nexusHR-common/**",
+      "pom.xml"
+    ]
+  },
+  "deploy": {
+    "healthcheckPath": "/api/v1/ai/health",
+    "healthcheckTimeout": 300,
+    "restartPolicyType": "ON_FAILURE"
+  }
+}
