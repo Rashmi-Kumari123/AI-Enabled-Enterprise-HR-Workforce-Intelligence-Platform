@@ -1,8 +1,7 @@
-# Multi-stage build for any NexusHR Spring Boot microservice.
-# Usage:
-#   docker build -f docker/Dockerfile.spring-service \
-#     --build-arg SERVICE_MODULE=auth-service \
-#     -t nexushr/auth-service:latest .
+# Railway / Docker entry for NexusHR microservices.
+# REQUIRED service variable on Railway: SERVICE_MODULE=auth-service (or api-gateway, etc.)
+#
+# Do NOT set a custom start command in Railway — this image runs: java -jar /app/app.jar
 
 FROM maven:3.9-eclipse-temurin-21-alpine AS build
 ARG SERVICE_MODULE
@@ -36,11 +35,5 @@ USER nexushr
 
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
 EXPOSE 8080
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:${PORT:-8080}/actuator/health 2>/dev/null \
-    || wget -qO- http://127.0.0.1:${PORT:-8080}/api/v1/auth/health 2>/dev/null \
-    || wget -qO- http://127.0.0.1:${PORT:-8080}/api/v1/employees/health 2>/dev/null \
-    || exit 1
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]

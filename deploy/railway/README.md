@@ -125,9 +125,10 @@ For **each** backend service, repeat:
 | ai-insights-service | `deploy/railway/services/ai-insights-service.railway.json` | `SERVICE_MODULE=ai-insights-service` |
 | notification-service | `deploy/railway/services/notification-service.railway.json` | `SERVICE_MODULE=notification-service` |
 
-5. **Settings → Build → Dockerfile path** (if not picked up from config): `docker/Dockerfile.spring-service`
-6. **Variables → Add `SERVICE_MODULE`** with the value from the table (Railway passes this as Docker `ARG`)
-7. **Settings → Networking → Private networking**: enabled
+5. **Settings → Build → Dockerfile path**: `Dockerfile` (repo root)
+6. **Variables → Add `SERVICE_MODULE`** with the value from the table (required Docker build arg)
+7. **Settings → Deploy → Custom Start Command**: leave **empty** (use Dockerfile `ENTRYPOINT`)
+8. **Settings → Networking → Private networking**: enabled
 8. For all services **except api-gateway**: disable **Public Networking** (recommended)
 
 ---
@@ -334,6 +335,29 @@ Free tier trial credits may not cover all 9 services continuously — start with
 ---
 
 ## Troubleshooting
+
+### `Error: Unable to access jarfile target/*jar`
+
+**Root cause:** Railway used **Nixpacks** (Maven auto-detect) instead of **Docker**. Nixpacks start command is `java -jar target/*jar`, which fails because no JAR exists at runtime.
+
+**Fix (do all three):**
+
+1. **Remove custom start command**  
+   Service → **Settings → Deploy → Custom Start Command** → **clear/delete** (must be empty)
+
+2. **Force Docker builder**  
+   Service → **Settings → Build** → Builder = **Dockerfile**  
+   Dockerfile path = **`Dockerfile`** (repo root)
+
+3. **Set build variable** on the service:
+   ```env
+   SERVICE_MODULE=auth-service
+   ```
+   (Use `api-gateway`, `employee-service`, etc. per service)
+
+4. **Redeploy** — build logs should show `docker build`, not `nixpacks` / `mvn` at runtime.
+
+This repo includes root `Dockerfile`, `railway.toml`, and `nixpacks.toml` to prevent Nixpacks from taking over.
 
 | Issue | Fix |
 |:------|:----|

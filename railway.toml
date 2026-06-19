@@ -1,0 +1,10 @@
+# Force Docker build — prevents Nixpacks from running `java -jar target/*jar`
+# Set SERVICE_MODULE on each Railway service (auth-service, api-gateway, …)
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+healthcheckTimeout = 300
