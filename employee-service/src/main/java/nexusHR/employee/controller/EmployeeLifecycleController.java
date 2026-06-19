@@ -37,6 +37,12 @@ public class EmployeeLifecycleController {
         validateInternalKey(key);
         return employeeLifecycleService.onboard(request);
     }
+    @PostMapping("/internal/provision")
+    public EmployeeResponse internalProvision(
+            @RequestHeader("X-Internal-Key") String key, @Valid @RequestBody InternalOnboardRequest request) {
+        validateInternalKey(key);
+        return employeeLifecycleService.provisionIfMissing(request);
+    }
     @GetMapping("/internal/by-user/{userId}")
     public EmployeeResponse internalFindByUser(
             @RequestHeader("X-Internal-Key") String key, @PathVariable Long userId) {

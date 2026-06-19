@@ -10,12 +10,15 @@ import nexusHR.auth.dto.AuthResponse;
 import nexusHR.auth.dto.LoginRequest;
 import nexusHR.auth.dto.MessageResponse;
 import nexusHR.auth.dto.RefreshTokenRequest;
-import nexusHR.auth.dto.InternalOnboardEmployeeRequest;
+import nexusHR.auth.dto.HireEmployeeRequest;
+import nexusHR.auth.dto.HireEmployeeResponse;
 import nexusHR.auth.dto.SignupRequest;
 import nexusHR.auth.entity.RefreshToken;
 import nexusHR.auth.entity.Role;
 import nexusHR.auth.entity.User;
 import nexusHR.auth.exception.ApiException;
+import nexusHR.auth.dto.InternalOnboardEmployeeRequest;
+import nexusHR.auth.integration.EmployeeOnboardResult;
 import nexusHR.auth.integration.EmployeeServiceClient;
 import nexusHR.auth.repository.RefreshTokenRepository;
 import nexusHR.auth.repository.RoleRepository;
@@ -25,6 +28,7 @@ import nexusHR.auth.security.UserPrincipal;
 import nexusHR.auth.session.CachedSession;
 import nexusHR.auth.session.SessionCacheService;
 import nexusHR.common.enums.RoleName;
+import nexusHR.common.util.EmailRoleHeuristic;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -73,7 +77,9 @@ public class AuthService {
                 user.getEmail(),
                 null,
                 null,
-                null));
+                null,
+                null,
+                assignedRole.getName() != RoleName.ROLE_EMPLOYEE));
         return issueTokens(user);
     }
 
@@ -86,6 +92,17 @@ public class AuthService {
         User user = userRepository
                 .findByEmail(principal.getUsername())
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        employeeServiceClient.provisionEmployee(new InternalOnboardEmployeeRequest(
+                user.getId(),
+                "",
+                "",
+                user.getEmail(),
+                null,
+                null,
+                null,
+                null,
+                isPlatformOperator(user)));
 
         refreshTokenRepository.revokeAllActiveByUser(user);
         sessionCacheService.invalidateAllForUser(user.getId());
@@ -121,6 +138,50 @@ public class AuthService {
                 });
         return new MessageResponse("Logged out successfully");
     }
+    @Transactional
+    public HireEmployeeResponse hireEmployee(HireEmployeeRequest request) {
+        String email = request.email().toLowerCase().trim();
+        if (userRepository.existsByEmail(email)) {
+            throw new ApiException(HttpStatus.CONFLICT, "Email already registered");
+        }
+        Role employeeRole = roleRepository
+                .findByName(RoleName.ROLE_EMPLOYEE)
+                .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Employee role not configured"));
+
+        User user = new User();
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode(request.temporaryPassword()));
+        user.getRoles().add(employeeRole);
+        userRepository.save(user);
+
+        EmployeeOnboardResult employee;
+        try {
+            employee = employeeServiceClient.onboardEmployeeForHire(new InternalOnboardEmployeeRequest(
+                    user.getId(),
+                    request.firstName().trim(),
+                    request.lastName().trim(),
+                    email,
+                    request.phone(),
+                    request.departmentId(),
+                    null,
+                    request.hireDate(),
+                    false));
+        } catch (IllegalStateException ex) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, ex.getMessage());
+        }
+        if (employee == null || employee.id() == null) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "Employee profile could not be created");
+        }
+
+        return new HireEmployeeResponse(
+                user.getId(),
+                employee.id(),
+                employee.employeeCode(),
+                email,
+                employee.firstName(),
+                employee.lastName(),
+                "Employee hired successfully. Share login credentials securely.");
+    }
 
     private AuthResponse issueTokens(User user) {
         UserPrincipal principal = UserPrincipal.from(user);
@@ -153,19 +214,10 @@ public class AuthService {
     }
 
     static RoleName resolveRoleFromEmail(String email) {
-        String normalized = email.toLowerCase().trim();
-        int atIndex = normalized.indexOf('@');
-        String localPart = atIndex > 0 ? normalized.substring(0, atIndex) : normalized;
-
-        if (localPart.contains("admin")) {
-            return RoleName.ROLE_ADMIN;
-        }
-        if (localPart.contains("hr")) {
-            return RoleName.ROLE_HR;
-        }
-        if (localPart.contains("manager")) {
-            return RoleName.ROLE_MANAGER;
-        }
-        return RoleName.ROLE_EMPLOYEE;
+        return EmailRoleHeuristic.resolveRoleFromEmail(email);
+    }
+    private static boolean isPlatformOperator(User user) {
+        return user.getRoles().stream()
+                .anyMatch(role -> role.getName() != RoleName.ROLE_EMPLOYEE);
     }
 }

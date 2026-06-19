@@ -71,7 +71,9 @@ public class DemoUserInitializer implements ApplicationRunner {
                 saved.getEmail(),
                 null,
                 null,
-                account.departmentCode()));
+                account.departmentCode(),
+                null,
+                account.role() != RoleName.ROLE_EMPLOYEE));
         log.info("Seeded demo account {} ({})", email, account.role());
     }
 }

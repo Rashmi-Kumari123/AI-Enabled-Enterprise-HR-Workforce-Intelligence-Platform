@@ -6,4 +6,6 @@ public record InternalOnboardEmployeeRequest(
         String email,
         String phone,
         Long departmentId,
-        String departmentCode) {}
+        String departmentCode,
+        java.time.LocalDate hireDate,
+        Boolean skipOnboarding) {}

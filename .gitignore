@@ -121,3 +121,9 @@ docker-data/
 docker-compose.override.yml
 docker-compose.*.local.yml
 
+# Generated reports
+reports/
+
+# K8s secrets (use secrets.example.yaml)
+k8s/secrets.yaml
+

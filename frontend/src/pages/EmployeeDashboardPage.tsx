@@ -1,31 +1,63 @@
-import { Calendar, Clock, FileText, Loader2, Star, User, UserPen } from 'lucide-react'
+import { Calendar, Clock, FileText, Loader2, Rocket, Star, User, UserPen } from 'lucide-react'
+import { useState } from 'react'
 import { AiInsightBanner } from '@/components/dashboard/AiInsightBanner'
 import { MetricCard } from '@/components/dashboard/MetricCard'
 import { QuickActions } from '@/components/dashboard/QuickActions'
 import { StatusBadge } from '@/components/dashboard/StatusBadge'
 import { DashboardHero } from '@/components/layout/DashboardHero'
 import { SectionHeader } from '@/components/layout/SectionHeader'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useAuth } from '@/contexts/auth-context'
 import { useEmployeeDashboard } from '@/hooks/use-employee-dashboard'
+import * as employeeApi from '@/lib/api/employee-api'
+import { ApiError } from '@/lib/api/http'
 
 function formatTime(iso: string | null): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
+
+function defaultNameFromEmail(email: string): { firstName: string; lastName: string } {
+  const local = email.split('@')[0] ?? 'employee'
+  const parts = local.replace(/[._-]+/g, ' ').trim().split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) {
+    return {
+      firstName: parts[0].charAt(0).toUpperCase() + parts[0].slice(1),
+      lastName: parts.slice(1).join(' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+    }
+  }
+  return {
+    firstName: local.charAt(0).toUpperCase() + local.slice(1),
+    lastName: 'User',
+  }
+}
+
 export function EmployeeDashboardPage() {
-  const {
-    profile,
-    profileError,
-    isLoading,
-    todayAttendance,
-    todayError,
-    pendingLeaves,
-    approvedLeaves,
-    scorecard,
-    leaves,
-    attendanceHistory,
-    refetch,
-  } = useEmployeeDashboard()
+  const { user } = useAuth()
+  const { profile, profileError, isLoading, todayAttendance, todayError,
+    pendingLeaves, approvedLeaves, scorecard, leaves, attendanceHistory, refetch } = useEmployeeDashboard();
+
+  const defaults = defaultNameFromEmail(user?.email ?? '')
+  const [firstName, setFirstName] = useState(defaults.firstName)
+  const [lastName, setLastName] = useState(defaults.lastName)
+  const [provisioning, setProvisioning] = useState(false)
+  const [provisionError, setProvisionError] = useState<string | null>(null)
+
+  async function activateWorkspace() {
+    setProvisionError(null)
+    setProvisioning(true)
+    try {
+      await employeeApi.provisionMyProfile({ firstName: firstName.trim(), lastName: lastName.trim() })
+      await refetch()
+    } catch (err) {
+      setProvisionError(err instanceof ApiError ? err.message : 'Could not activate workspace')
+    } finally {
+      setProvisioning(false)
+    }
+  }
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
@@ -33,15 +65,69 @@ export function EmployeeDashboardPage() {
       </div>
     )
   }
-  if (profileError || !profile) {
+  if (profileError?.status === 404 || !profile) {
+    return (
+      <div className="p-6 md:p-10">
+        <Card className="surface-panel mx-auto max-w-xl border-0">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Rocket className="h-5 w-5 text-brand-teal" />
+              Activate your workspace
+            </CardTitle>
+            <CardDescription>
+              NexusHR links your login to an employee record so you can mark attendance, apply leave, and view payslips.
+              Signup does this automatically — use the button below if your profile was not created yet.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label htmlFor="firstName">First name</Label>
+                <Input
+                  id="firstName"
+                  className="rounded-xl"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="lastName">Last name</Label>
+                <Input
+                  id="lastName"
+                  className="rounded-xl"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Account: <strong>{user?.email}</strong> · HR can also onboard you from Lifecycle if you were hired
+              before self-signup.
+            </p>
+            {provisionError ? (
+              <p className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{provisionError}</p>
+            ) : null}
+            <Button
+              variant="gradient"
+              className="w-full rounded-full sm:w-auto"
+              disabled={provisioning || !firstName.trim() || !lastName.trim()}
+              onClick={activateWorkspace}
+            >
+              {provisioning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+              Activate my workspace
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+  if (profileError) {
     return (
       <div className="p-10">
         <Card className="surface-panel border-destructive/30">
           <CardHeader>
-            <CardTitle>Profile not linked</CardTitle>
-            <CardDescription>
-              Ask HR to create an employee record with the same email you use to sign in.
-            </CardDescription>
+            <CardTitle>Could not load profile</CardTitle>
+            <CardDescription>{profileError.message}</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -58,7 +144,6 @@ export function EmployeeDashboardPage() {
       />
       <div className="space-y-8 p-6 md:p-10">
         <AiInsightBanner message="Your productivity increased by 12% this month based on attendance and performance signals." />
-
         <QuickActions
           actions={[
             { label: 'Mark Attendance', icon: Clock, to: '/dashboard/attendance', accent: 'teal' },

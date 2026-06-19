@@ -1,6 +1,6 @@
 import { apiConfig } from '@/lib/api/config'
 import { fetchAuthedBlob, fetchAuthedJson, fetchAuthedMultipart } from '@/lib/api/authenticated'
-import type { EmployeeDocument, EmployeeOnboardingPipeline, EmployeeProfile, OnboardingStatus } from '@/types/hr';
+import type { Department, EmployeeDocument, EmployeeOnboardingPipeline, EmployeeProfile, OnboardingStatus } from '@/types/hr';
 const base = apiConfig.employee
 export function fetchMyProfile(): Promise<EmployeeProfile> {
   return fetchAuthedJson(`${base}/api/v1/employees/me`)
@@ -8,6 +8,16 @@ export function fetchMyProfile(): Promise<EmployeeProfile> {
 export function updateMyProfile(payload: { phone: string }): Promise<EmployeeProfile> {
   return fetchAuthedJson(`${base}/api/v1/employees/me`, {
     method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+export function provisionMyProfile(payload: {
+  firstName: string
+  lastName: string
+}): Promise<EmployeeProfile> {
+  return fetchAuthedJson(`${base}/api/v1/employees/me/provision`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
 }
@@ -46,6 +56,9 @@ export function downloadEmployeeDocument(employeeId: number, documentId: number)
 }
 export function fetchEmployees(): Promise<EmployeeProfile[]> {
   return fetchAuthedJson(`${base}/api/v1/employees`)
+}
+export function fetchDepartments(): Promise<Department[]> {
+  return fetchAuthedJson(`${base}/api/v1/departments`)
 }
 export function fetchEmployee(id: number): Promise<EmployeeProfile> {
   return fetchAuthedJson(`${base}/api/v1/employees/${id}`)

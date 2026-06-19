@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import nexusHR.common.enums.EmploymentStatus;
+import nexusHR.common.util.EmailRoleHeuristic;
 import nexusHR.employee.dto.EmployeeOnboardingPipelineResponse;
 import nexusHR.employee.dto.EmployeeResponse;
 import nexusHR.employee.dto.InternalOnboardRequest;
@@ -55,21 +56,31 @@ public class EmployeeLifecycleService {
         employee.setEmail(request.email().toLowerCase().trim());
         employee.setPhone(request.phone());
         employee.setDepartment(resolveDepartment(request.departmentId(), request.departmentCode()));
-        employee.setHireDate(LocalDate.now());
-        employee.setEmploymentStatus(EmploymentStatus.PROBATION);
-        employee.setOnboardingCompleted(false);
+        employee.setHireDate(request.hireDate() != null ? request.hireDate() : LocalDate.now());
+        boolean skipOnboarding = shouldSkipOnboarding(request);
+        if (skipOnboarding) {
+            employee.setEmploymentStatus(EmploymentStatus.ACTIVE);
+            employee.setOnboardingCompleted(true);
+        } else {
+            employee.setEmploymentStatus(EmploymentStatus.PROBATION);
+            employee.setOnboardingCompleted(false);
+        }
         Employee saved = employeeRepository.save(employee);
 
-        for (String[] task : DEFAULT_ONBOARDING_TASKS) {
-            OnboardingTask onboardingTask = new OnboardingTask();
-            onboardingTask.setEmployeeId(saved.getId());
-            onboardingTask.setTaskCode(task[0]);
-            onboardingTask.setTitle(task[1]);
-            onboardingTask.setCompleted(false);
-            onboardingTaskRepository.save(onboardingTask);
+        if (!skipOnboarding) {
+            for (String[] task : DEFAULT_ONBOARDING_TASKS) {
+                OnboardingTask onboardingTask = new OnboardingTask();
+                onboardingTask.setEmployeeId(saved.getId());
+                onboardingTask.setTaskCode(task[0]);
+                onboardingTask.setTitle(task[1]);
+                onboardingTask.setCompleted(false);
+                onboardingTaskRepository.save(onboardingTask);
+            }
+            sendOnboardingWelcome(saved);
+        } else {
+            sendPlatformStaffWelcome(saved);
         }
         leaveServiceClient.seedBalances(saved.getId());
-        sendOnboardingWelcome(saved);
         return employeeService.findById(saved.getId());
     }
     @Transactional(readOnly = true)
@@ -150,6 +161,58 @@ public class EmployeeLifecycleService {
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Employee not found for user"));
     }
 
+    @Transactional
+    public EmployeeResponse provisionIfMissing(InternalOnboardRequest request) {
+        return employeeRepository
+                .findByUserId(request.userId())
+                .map(employee -> employeeService.findById(employee.getId()))
+                .orElseGet(() -> linkOrCreateEmployee(request));
+    }
+
+    private EmployeeResponse linkOrCreateEmployee(InternalOnboardRequest request) {
+        String email = request.email().toLowerCase().trim();
+        return employeeRepository
+                .findByEmail(email)
+                .map(existing -> {
+                    if (existing.getUserId() != null && !existing.getUserId().equals(request.userId())) {
+                        throw new ApiException(
+                                HttpStatus.CONFLICT, "Email already linked to another account. Contact HR.");
+                    }
+                    existing.setUserId(request.userId());
+                    return employeeService.findById(employeeRepository.save(existing).getId());
+                })
+                .orElseGet(() -> onboard(withResolvedNames(request)));
+    }
+
+    private static InternalOnboardRequest withResolvedNames(InternalOnboardRequest request) {
+        String firstName = request.firstName() != null && !request.firstName().isBlank()
+                ? request.firstName().trim()
+                : deriveFirstName(request.email());
+        String lastName = request.lastName() != null && !request.lastName().isBlank()
+                ? request.lastName().trim()
+                : "User";
+        return new InternalOnboardRequest(
+                request.userId(), firstName, lastName, request.email(), request.phone(), request.departmentId(), request.departmentCode(), request.hireDate(), request.skipOnboarding());
+    }
+
+    private boolean shouldSkipOnboarding(InternalOnboardRequest request) {
+        if (Boolean.TRUE.equals(request.skipOnboarding())) {
+            return true;
+        }
+        if (Boolean.FALSE.equals(request.skipOnboarding())) {
+            return false;
+        }
+        return EmailRoleHeuristic.isPlatformOperatorEmail(request.email());
+    }
+
+    private static String deriveFirstName(String email) {
+        String local = email.contains("@") ? email.substring(0, email.indexOf('@')) : email;
+        if (local.isBlank()) {
+            return "Employee";
+        }
+        return local.substring(0, 1).toUpperCase() + local.substring(1);
+    }
+
     private boolean maybeCompleteOnboarding(Long employeeId) {
         if (onboardingTaskRepository.countByEmployeeIdAndCompletedFalse(employeeId) > 0) {
             return false;
@@ -183,6 +246,17 @@ public class EmployeeLifecycleService {
                         task.getId(), task.getTaskCode(), task.getTitle(), task.isCompleted(), task.getCompletedAt()))
                 .toList();
     }
+    private void sendPlatformStaffWelcome(Employee employee) {
+        notificationClient.dispatch(new NotificationDispatchPayload(
+                "USER",
+                employee.getEmail(),
+                "Welcome to NexusHR",
+                "Hi " + employee.getFirstName() + ", your platform operator profile is active.",
+                "ONBOARDING_WELCOME",
+                "ONBOARDING",
+                employee.getId()));
+    }
+
     private void sendOnboardingWelcome(Employee employee) {
         String fullName = employee.getFirstName() + " " + employee.getLastName();
         notificationClient.dispatch(new NotificationDispatchPayload(

@@ -3,12 +3,15 @@ import jakarta.validation.Valid;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import nexusHR.auth.dto.AuthResponse;
+import nexusHR.auth.dto.HireEmployeeRequest;
+import nexusHR.auth.dto.HireEmployeeResponse;
 import nexusHR.auth.dto.LoginRequest;
 import nexusHR.auth.dto.MessageResponse;
 import nexusHR.auth.dto.RefreshTokenRequest;
 import nexusHR.auth.dto.SignupRequest;
 import nexusHR.auth.service.AuthService;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -46,5 +49,11 @@ public class AuthController {
     @PostMapping("/logout")
     public MessageResponse logout(@Valid @RequestBody RefreshTokenRequest request) {
         return authService.logout(request);
+    }
+    @PostMapping("/hire")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    public HireEmployeeResponse hire(@Valid @RequestBody HireEmployeeRequest request) {
+        return authService.hireEmployee(request);
     }
 }
