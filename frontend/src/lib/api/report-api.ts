@@ -35,6 +35,7 @@ export function createReportSchedule(payload: CreateReportScheduleInput): Promis
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
+}
 export function deleteReportSchedule(id: number): Promise<void> {
   return fetchAuthedVoid(`${base}/schedules/${id}`, { method: 'DELETE' })
 }

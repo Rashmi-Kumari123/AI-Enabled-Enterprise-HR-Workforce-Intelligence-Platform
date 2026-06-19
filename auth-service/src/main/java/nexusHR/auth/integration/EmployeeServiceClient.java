@@ -4,7 +4,9 @@ import nexusHR.auth.dto.InternalOnboardEmployeeRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 @Slf4j
 @Component
@@ -18,17 +20,36 @@ public class EmployeeServiceClient {
         this.restClient = RestClient.builder().baseUrl(employeeUrl).build();
     }
     public void onboardEmployee(InternalOnboardEmployeeRequest request) {
+        provisionEmployee(request);
+    }
+    public void provisionEmployee(InternalOnboardEmployeeRequest request) {
         try {
             restClient
                     .post()
-                    .uri("/api/v1/employees/internal/onboard")
+                    .uri("/api/v1/employees/internal/provision")
                     .header("X-Internal-Key", internalKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(request)
                     .retrieve()
                     .toBodilessEntity();
         } catch (Exception ex) {
-            log.warn("Employee onboarding sync failed for user {}: {}", request.userId(), ex.getMessage());
+            log.warn("Employee profile sync failed for user {}: {}", request.userId(), ex.getMessage());
+        }
+    }
+    public EmployeeOnboardResult onboardEmployeeForHire(InternalOnboardEmployeeRequest request) {
+        try {
+            return restClient
+                    .post()
+                    .uri("/api/v1/employees/internal/onboard")
+                    .header("X-Internal-Key", internalKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .body(EmployeeOnboardResult.class);
+        } catch (HttpClientErrorException.Conflict ex) {
+            throw new IllegalStateException("User already linked to an employee profile", ex);
+        } catch (RestClientException ex) {
+            throw new IllegalStateException("Employee profile could not be created: " + ex.getMessage(), ex);
         }
     }
 }

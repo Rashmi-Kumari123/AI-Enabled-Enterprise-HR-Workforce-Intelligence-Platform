@@ -4,9 +4,12 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import nexusHR.employee.dto.EmployeeProfileUpdateRequest;
+import nexusHR.employee.dto.EmployeeProvisionRequest;
 import nexusHR.employee.dto.EmployeeRequest;
 import nexusHR.employee.dto.EmployeeResponse;
+import nexusHR.employee.dto.InternalOnboardRequest;
 import nexusHR.employee.security.JwtService;
+import nexusHR.employee.service.EmployeeLifecycleService;
 import nexusHR.employee.service.EmployeeService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class EmployeeController {
     private final EmployeeService employeeService;
+    private final EmployeeLifecycleService employeeLifecycleService;
     private final JwtService jwtService;
     @GetMapping
     @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
@@ -47,6 +51,30 @@ public class EmployeeController {
             @Valid @RequestBody EmployeeProfileUpdateRequest body) {
         return employeeService.updateMyProfile(extractUserId(request), authentication.getName(), body);
     }
+    @PostMapping("/me/provision")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER', 'EMPLOYEE')")
+    public EmployeeResponse provisionMyProfile(
+            Authentication authentication,
+            HttpServletRequest request,
+            @Valid @RequestBody EmployeeProvisionRequest body) {
+        Long userId = extractUserId(request);
+        if (userId == null) {
+            throw new nexusHR.employee.exception.ApiException(
+                    HttpStatus.BAD_REQUEST, "Sign in again — account ID missing from session");
+        }
+        return employeeLifecycleService.provisionIfMissing(new InternalOnboardRequest(
+                userId,
+                body.firstName(),
+                body.lastName(),
+                authentication.getName(),
+                null,
+                null,
+                null,
+                null,
+                false));
+    }
+
     private Long extractUserId(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
         if (header == null || !header.startsWith("Bearer ")) {

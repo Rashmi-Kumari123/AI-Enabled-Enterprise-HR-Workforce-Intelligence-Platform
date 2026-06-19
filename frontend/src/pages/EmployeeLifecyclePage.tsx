@@ -1,5 +1,6 @@
-import { CheckCircle2, ClipboardList, Loader2, LogOut, UserMinus, Users } from 'lucide-react';
+import { CheckCircle2, ClipboardList, Loader2, LogOut, UserMinus, Users } from 'lucide-react'
 import { useState } from 'react'
+import { AddEmployeeForm } from '@/components/hr/AddEmployeeForm'
 import { StatusBadge } from '@/components/dashboard/StatusBadge'
 import { DashboardHero } from '@/components/layout/DashboardHero'
 import { Button } from '@/components/ui/button'
@@ -59,7 +60,7 @@ export function EmployeeLifecyclePage() {
         eyebrow="People Operations"
         titleHighlight="Employee"
         titleRest="Lifecycle"
-        description="HR-owned onboarding pipeline · mark tasks complete · offboard employees"
+        description="HR-owned hiring · onboarding pipeline · offboard employees"
         onRefresh={refetch}
       />
       <div className="space-y-8 p-6 md:p-10">
@@ -94,18 +95,20 @@ export function EmployeeLifecyclePage() {
             <CardContent className="py-6 text-sm text-muted-foreground">
               <p className="font-medium text-foreground">Operating model</p>
               <p className="mt-2">
-                HR completes checklist → system promotes <strong>PROBATION → ACTIVE</strong> when all tasks are done.
+                New hires enter onboarding (PROBATION → ACTIVE). Admin, HR, and Manager accounts are auto-activated — no checklist for platform operators.
               </p>
             </CardContent>
           </Card>
         </div>
+
+        <AddEmployeeForm onHired={() => refetch()} />
 
         <section className="space-y-4">
           <h2 className="text-lg font-semibold">Onboarding pipeline</h2>
           {pipeline.length === 0 ? (
             <Card className="surface-panel border-dashed">
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                No employees in onboarding. New signups automatically enter PROBATION with a 4-step checklist.
+                No employees in onboarding. Use <strong>Add employee</strong> above or wait for new signups — they enter PROBATION with a 4-step checklist.
               </CardContent>
             </Card>
           ) : (

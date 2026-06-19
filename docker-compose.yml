@@ -1,10 +1,38 @@
+# NexusHR — local infrastructure + optional full stack
+#
+# Infra only:     docker compose up -d
+# Full platform:  docker compose --profile app up -d --build
+# Monitoring:     docker compose --profile monitoring up -d
+
+x-java-env: &java-env
+  JWT_SECRET: ${JWT_SECRET:-yPZl/g1HfzCIKrRuuCOcdOjcLUfb4xEdgdGgSu1tToe8jovFisN9877lPwHX61jmtYuBZ8iuqWHclKMk/13psA==}
+  DB_USERNAME: ${DB_USERNAME:-postgres}
+  DB_PASSWORD: ${DB_PASSWORD:-admin123}
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  NOTIFICATION_INTERNAL_KEY: ${NOTIFICATION_INTERNAL_KEY:-nexushr-internal-dev-key}
+  LEAVE_INTERNAL_KEY: ${LEAVE_INTERNAL_KEY:-nexushr-internal-dev-key}
+  EMPLOYEE_INTERNAL_KEY: ${EMPLOYEE_INTERNAL_KEY:-nexushr-internal-dev-key}
+  JPA_SHOW_SQL: "false"
+  SPRING_FLYWAY_ENABLED: "true"
+
+x-java-service: &java-service
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  networks:
+    - nexushr
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: nexushr-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: admin123
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-admin123}
     ports:
       - "5432:5432"
     volumes:
@@ -15,6 +43,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - nexushr
 
   redis:
     image: redis:7-alpine
@@ -26,6 +56,258 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - nexushr
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: nexushr-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - nexushr
+
+  auth-service:
+    profiles: ["app"]
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spring-service
+      args:
+        SERVICE_MODULE: auth-service
+    image: nexushr/auth-service:latest
+    container_name: nexushr-auth
+    environment:
+      <<: *java-env
+      SERVER_PORT: 8081
+      DB_URL: jdbc:postgresql://postgres:5432/nexus_auth_db?sslmode=disable
+      APP_SERVICES_EMPLOYEE_URL: http://employee-service:8082
+    ports:
+      - "8081:8081"
+
+  employee-service:
+    profiles: ["app"]
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spring-service
+      args:
+        SERVICE_MODULE: employee-service
+    image: nexushr/employee-service:latest
+    container_name: nexushr-employee
+    environment:
+      <<: *java-env
+      SERVER_PORT: 8082
+      DB_URL: jdbc:postgresql://postgres:5432/nexus_employee_db?sslmode=disable
+      APP_UPLOAD_DIR: /app/uploads
+    volumes:
+      - employee_uploads:/app/uploads
+    ports:
+      - "8082:8082"
+
+  payroll-service:
+    profiles: ["app"]
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spring-service
+      args:
+        SERVICE_MODULE: payroll-service
+    image: nexushr/payroll-service:latest
+    container_name: nexushr-payroll
+    environment:
+      <<: *java-env
+      SERVER_PORT: 8083
+      DB_URL: jdbc:postgresql://postgres:5432/nexus_payroll_db?sslmode=disable
+      APP_SERVICES_EMPLOYEE_URL: http://employee-service:8082
+      APP_NOTIFICATIONS_URL: http://notification-service:8089
+    ports:
+      - "8083:8083"
+
+  attendance-service:
+    profiles: ["app"]
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spring-service
+      args:
+        SERVICE_MODULE: attendance-service
+    image: nexushr/attendance-service:latest
+    container_name: nexushr-attendance
+    environment:
+      <<: *java-env
+      SERVER_PORT: 8084
+      DB_URL: jdbc:postgresql://postgres:5432/nexus_attendance_db?sslmode=disable
+      APP_SERVICES_EMPLOYEE_URL: http://employee-service:8082
+      APP_NOTIFICATIONS_URL: http://notification-service:8089
+    ports:
+      - "8084:8084"
+
+  leave-service:
+    profiles: ["app"]
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spring-service
+      args:
+        SERVICE_MODULE: leave-service
+    image: nexushr/leave-service:latest
+    container_name: nexushr-leave
+    environment:
+      <<: *java-env
+      SERVER_PORT: 8085
+      DB_URL: jdbc:postgresql://postgres:5432/nexus_leave_db?sslmode=disable
+      APP_SERVICES_EMPLOYEE_URL: http://employee-service:8082
+      APP_NOTIFICATIONS_URL: http://notification-service:8089
+    ports:
+      - "8085:8085"
+
+  performance-service:
+    profiles: ["app"]
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spring-service
+      args:
+        SERVICE_MODULE: performance-service
+    image: nexushr/performance-service:latest
+    container_name: nexushr-performance
+    environment:
+      <<: *java-env
+      SERVER_PORT: 8086
+      DB_URL: jdbc:postgresql://postgres:5432/nexus_performance_db?sslmode=disable
+      APP_NOTIFICATIONS_URL: http://notification-service:8089
+    ports:
+      - "8086:8086"
+
+  ai-insights-service:
+    profiles: ["app"]
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spring-service
+      args:
+        SERVICE_MODULE: ai-insights-service
+    image: nexushr/ai-insights-service:latest
+    container_name: nexushr-ai-insights
+    environment:
+      <<: *java-env
+      SERVER_PORT: 8088
+      DB_URL: jdbc:postgresql://postgres:5432/nexus_ai_insights_db?sslmode=disable
+      APP_SERVICES_EMPLOYEE_URL: http://employee-service:8082
+      APP_SERVICES_LEAVE_URL: http://leave-service:8085
+      APP_SERVICES_ATTENDANCE_URL: http://attendance-service:8084
+      APP_SERVICES_PERFORMANCE_URL: http://performance-service:8086
+      APP_NOTIFICATIONS_URL: http://notification-service:8089
+    ports:
+      - "8088:8088"
+
+  notification-service:
+    profiles: ["app"]
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spring-service
+      args:
+        SERVICE_MODULE: notification-service
+    image: nexushr/notification-service:latest
+    container_name: nexushr-notification
+    environment:
+      <<: *java-env
+      SERVER_PORT: 8089
+      DB_URL: jdbc:postgresql://postgres:5432/nexus_notification_db?sslmode=disable
+      MAIL_HOST: mailhog
+      MAIL_PORT: 1025
+      APP_SERVICES_LEAVE_URL: http://leave-service:8085
+    ports:
+      - "8089:8089"
+
+  api-gateway:
+    profiles: ["app"]
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spring-service
+      args:
+        SERVICE_MODULE: api-gateway
+    image: nexushr/api-gateway:latest
+    container_name: nexushr-gateway
+    environment:
+      SERVER_PORT: 8080
+      AUTH_SERVICE_URL: http://auth-service:8081
+      EMPLOYEE_SERVICE_URL: http://employee-service:8082
+      PAYROLL_SERVICE_URL: http://payroll-service:8083
+      ATTENDANCE_SERVICE_URL: http://attendance-service:8084
+      LEAVE_SERVICE_URL: http://leave-service:8085
+      PERFORMANCE_SERVICE_URL: http://performance-service:8086
+      AI_INSIGHTS_SERVICE_URL: http://ai-insights-service:8088
+      NOTIFICATION_SERVICE_URL: http://notification-service:8089
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+      - employee-service
+
+  frontend:
+    profiles: ["app"]
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_AUTH_API_URL: http://localhost:8080
+        VITE_EMPLOYEE_API_URL: http://localhost:8080
+        VITE_ATTENDANCE_API_URL: http://localhost:8080
+        VITE_LEAVE_API_URL: http://localhost:8080
+        VITE_PAYROLL_API_URL: http://localhost:8080
+        VITE_PERFORMANCE_API_URL: http://localhost:8080
+        VITE_NOTIFICATION_API_URL: http://localhost:8080
+        VITE_AI_INSIGHTS_API_URL: http://localhost:8080
+    image: nexushr/frontend:latest
+    container_name: nexushr-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - nexushr
+
+  prometheus:
+    profiles: ["monitoring"]
+    image: prom/prometheus:v2.55.1
+    container_name: nexushr-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - nexushr
+
+  grafana:
+    profiles: ["monitoring"]
+    image: grafana/grafana:11.4.0
+    container_name: nexushr-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - nexushr
+
+networks:
+  nexushr:
+    driver: bridge
 
 volumes:
   postgres_data:
+  employee_uploads:
+  prometheus_data:
+  grafana_data:

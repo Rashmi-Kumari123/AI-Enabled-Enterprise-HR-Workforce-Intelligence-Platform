@@ -37,6 +37,30 @@ export type EmployeeOnboardingPipeline = {
   onboardingCompleted: boolean
   tasks: OnboardingTask[]
 }
+export type Department = {
+  id: number
+  code: string
+  name: string
+  description: string | null
+}
+export type HireEmployeeInput = {
+  firstName: string
+  lastName: string
+  email: string
+  temporaryPassword: string
+  phone?: string
+  departmentId: number
+  hireDate: string
+}
+export type HireEmployeeResponse = {
+  userId: number
+  employeeId: number
+  employeeCode: string
+  email: string
+  firstName: string
+  lastName: string
+  message: string
+}
 export type EmployeeDocument = {
   id: number
   employeeId: number
