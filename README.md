@@ -392,18 +392,16 @@ HPA auto-scales **api-gateway**, **auth-service**, and **employee-service** (2�
 
 AWS EKS + S3 production guide: [`deploy/aws/README.md`](deploy/aws/README.md)
 
----
+Quick start with AWS CLI:
 
-## 🚂 Railway Deployment (Backend)
-
-Fastest path to a **live backend URL** for demos and Zidio submission:
-
-1. Create Railway project + **PostgreSQL** + **Redis**
-2. Run [`deploy/railway/provision-databases.sh`](deploy/railway/provision-databases.sh)
-3. Deploy 9 services from the same repo using [`deploy/railway/services/*.railway.json`](deploy/railway/services/)
-4. Expose **api-gateway** only → use as `VITE_*_API_URL` for frontend
-
-Full walkthrough: [`deploy/railway/README.md`](deploy/railway/README.md)
+```bash
+aws configure                    # one-time; never commit keys
+cp k8s/secrets.example.yaml k8s/secrets.yaml
+./scripts/aws/deploy.sh ecr      # create ECR repos
+./scripts/aws/deploy.sh push       # build & push images
+./scripts/aws/deploy.sh cluster    # create EKS (first time)
+./scripts/aws/deploy.sh k8s        # deploy to cluster
+```
 
 ---
 
@@ -440,9 +438,8 @@ AI-Enabled-Enterprise-HR-Workforce-Intelligence-Platform/
 ├── 📁 docker/                   # Multi-stage Dockerfiles
 ├── 📁 k8s/                      # Kubernetes manifests + HPA
 ├── 📁 monitoring/               # Prometheus + Grafana config
-├── 📁 deploy/aws/               # EKS deployment guide
-├── 📁 deploy/railway/           # Railway multi-service deploy guide
-├── 📁 scripts/                  # Build, load test, ZAP, DB init
+├── 📁 deploy/aws/               # AWS EKS + ECR deployment guide & CLI scripts
+├── 📁 scripts/                  # Build, AWS deploy, load test, ZAP, DB init
 ├── 📁 docs/
 │   ├── API_DOCUMENTATION.md     # Full REST API reference
 │   └── WEEK4-QA-CHECKLIST.md    # Pre-submission QA

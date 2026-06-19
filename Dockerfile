@@ -1,7 +1,6 @@
-# Railway / Docker entry for NexusHR microservices.
-# REQUIRED service variable on Railway: SERVICE_MODULE=auth-service (or api-gateway, etc.)
-#
-# Do NOT set a custom start command in Railway — this image runs: java -jar /app/app.jar
+# Docker entry for NexusHR microservices (ECR / EKS / local).
+# Build: docker build --build-arg SERVICE_MODULE=auth-service -t nexushr/auth-service .
+# Or use: ./scripts/aws/push-images.sh (pushes to ECR)
 
 FROM maven:3.9-eclipse-temurin-21-alpine AS build
 ARG SERVICE_MODULE
