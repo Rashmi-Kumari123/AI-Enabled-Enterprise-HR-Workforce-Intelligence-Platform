@@ -8,7 +8,7 @@ import { MetricCard } from '@/components/dashboard/MetricCard'
 import { DashboardHero } from '@/components/layout/DashboardHero'
 import { ScheduleReportsPanel } from '@/components/reports/ScheduleReportsPanel'
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 import { useManagerDashboard } from '@/hooks/use-manager-dashboard'
 import { useWorkforceAnalytics } from '@/hooks/use-workforce-analytics'
 import {

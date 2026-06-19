@@ -14,8 +14,8 @@ public class NotificationClient {
     private final boolean enabled;
 
     public NotificationClient(
-            @Value("${app.notifications.url}") String notificationUrl,
-            @Value("${app.notifications.internal-key}") String internalKey,
+            @Value("${app.notifications.url:http://localhost:8089}") String notificationUrl,
+            @Value("${app.notifications.internal-key:nexushr-internal-dev-key}") String internalKey,
             @Value("${app.notifications.enabled:true}") boolean enabled) {
         this.internalKey = internalKey;
         this.enabled = enabled;

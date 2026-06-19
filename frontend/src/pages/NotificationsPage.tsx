@@ -1,7 +1,7 @@
 import { Bell } from 'lucide-react'
 import { useState } from 'react'
 import { DashboardHero } from '@/components/layout/DashboardHero'
-import { useNotifications } from '@/contexts/notification-context'
+import { useNotifications } from '@/hooks/use-notifications'
 import { cn } from '@/lib/utils'
 
 const categories = ['All', 'LEAVE', 'PAYROLL', 'PERFORMANCE', 'SYSTEM'] as const

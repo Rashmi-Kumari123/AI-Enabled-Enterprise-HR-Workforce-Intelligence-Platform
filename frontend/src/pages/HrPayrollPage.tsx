@@ -1,5 +1,5 @@
 import { Banknote, CheckCircle2, Download, IndianRupee, Loader2, Play, Receipt, Users } from 'lucide-react';
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { StatusBadge } from '@/components/dashboard/StatusBadge'
 import { DashboardHero } from '@/components/layout/DashboardHero'
@@ -8,10 +8,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 import { useHrPayroll } from '@/hooks/use-hr-payroll'
 import * as payrollApi from '@/lib/api/payroll-api'
 import { cn } from '@/lib/utils'
+import type { EmployeeProfile, SalaryStructure } from '@/types/hr'
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -24,10 +25,6 @@ export function HrPayrollPage() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null)
   const [payYear, setPayYear] = useState(now.getFullYear())
   const [payMonth, setPayMonth] = useState(now.getMonth() + 1)
-  const [baseSalary, setBaseSalary] = useState('50000')
-  const [hraPercent, setHraPercent] = useState('40')
-  const [transportAllowance, setTransportAllowance] = useState('2000')
-  const [otherAllowance, setOtherAllowance] = useState('1000')
   const [batchSummary, setBatchSummary] = useState<string | null>(null)
   const [actingPayslipId, setActingPayslipId] = useState<number | null>(null)
   const [isBatchRunning, setIsBatchRunning] = useState(false)
@@ -35,20 +32,7 @@ export function HrPayrollPage() {
   const { employees, configuredEmployeeIds, selectedEmployee, selectedSalary, payslips, isLoading, isPayslipsLoading, error, saveSalary, isSavingSalary,
     saveSalaryError, generatePayslip, isGenerating, generateError, markPaid, runBatchPayroll, formatCurrency, refetch } = useHrPayroll(selectedEmployeeId);
 
-  useEffect(() => {
-    if (!selectedEmployeeId && employees.length > 0) {
-      setSelectedEmployeeId(employees[0].id)
-    }
-  }, [employees, selectedEmployeeId])
-
-  useEffect(() => {
-    if (selectedSalary) {
-      setBaseSalary(String(selectedSalary.baseSalary))
-      setHraPercent(String(selectedSalary.hraPercent))
-      setTransportAllowance(String(selectedSalary.transportAllowance))
-      setOtherAllowance(String(selectedSalary.otherAllowance))
-    }
-  }, [selectedSalary, selectedEmployeeId])
+  const activeEmployeeId = selectedEmployee?.id ?? null
 
   if (!allowed) {
     return (
@@ -69,15 +53,19 @@ export function HrPayrollPage() {
     )
   }
   const configuredCount = configuredEmployeeIds.size
-  async function handleSaveSalary(event: React.FormEvent) {
-    event.preventDefault()
-    if (!selectedEmployeeId) return
+  async function handleSaveSalary(values: {
+    baseSalary: string
+    hraPercent: string
+    transportAllowance: string
+    otherAllowance: string
+  }) {
+    if (!activeEmployeeId) return
     await saveSalary({
-      employeeId: selectedEmployeeId,
-      baseSalary: Number(baseSalary),
-      hraPercent: Number(hraPercent),
-      transportAllowance: Number(transportAllowance),
-      otherAllowance: Number(otherAllowance),
+      employeeId: activeEmployeeId,
+      baseSalary: Number(values.baseSalary),
+      hraPercent: Number(values.hraPercent),
+      transportAllowance: Number(values.transportAllowance),
+      otherAllowance: Number(values.otherAllowance),
     })
   }
   async function handleGeneratePayslip() {
@@ -233,7 +221,7 @@ export function HrPayrollPage() {
             <CardContent className="max-h-[420px] space-y-1 overflow-y-auto">
               {employees.map((employee) => {
                 const hasSalary = configuredEmployeeIds.has(employee.id)
-                const isSelected = employee.id === selectedEmployeeId
+                const isSelected = employee.id === activeEmployeeId
                 return (
                   <button
                     key={employee.id}
@@ -274,75 +262,19 @@ export function HrPayrollPage() {
                 />
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSaveSalary} className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="baseSalary">Base salary (INR)</Label>
-                    <Input
-                      id="baseSalary"
-                      type="number"
-                      min="1"
-                      className="rounded-xl"
-                      value={baseSalary}
-                      onChange={(e) => setBaseSalary(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="hraPercent">HRA %</Label>
-                    <Input
-                      id="hraPercent"
-                      type="number"
-                      min="0"
-                      className="rounded-xl"
-                      value={hraPercent}
-                      onChange={(e) => setHraPercent(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="transport">Transport allowance</Label>
-                    <Input
-                      id="transport"
-                      type="number"
-                      min="0"
-                      className="rounded-xl"
-                      value={transportAllowance}
-                      onChange={(e) => setTransportAllowance(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="other">Other allowance</Label>
-                    <Input
-                      id="other"
-                      type="number"
-                      min="0"
-                      className="rounded-xl"
-                      value={otherAllowance}
-                      onChange={(e) => setOtherAllowance(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-3 sm:col-span-2">
-                    <Button type="submit" variant="gradient" className="rounded-full" disabled={!selectedEmployeeId || isSavingSalary}>
-                      {isSavingSalary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Banknote className="h-4 w-4" />}
-                      Save salary structure
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-full"
-                      disabled={!selectedEmployee || !configuredEmployeeIds.has(selectedEmployee.id) || isGenerating}
-                      onClick={handleGeneratePayslip}
-                    >
-                      {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Receipt className="h-4 w-4" />}
-                      Generate payslip
-                    </Button>
-                  </div>
-                  {saveSalaryError ? (
-                    <p className="text-sm text-red-600 sm:col-span-2">{saveSalaryError}</p>
-                  ) : null}
-                  {generateError ? (
-                    <p className="text-sm text-red-600 sm:col-span-2">{generateError}</p>
-                  ) : null}
-                </form>
+                <SalaryStructureForm
+                  key={`${activeEmployeeId ?? 'none'}-${selectedSalary?.id ?? 'new'}`}
+                  selectedSalary={selectedSalary}
+                  employeeId={activeEmployeeId}
+                  selectedEmployee={selectedEmployee}
+                  configuredEmployeeIds={configuredEmployeeIds}
+                  isSavingSalary={isSavingSalary}
+                  isGenerating={isGenerating}
+                  saveSalaryError={saveSalaryError}
+                  generateError={generateError}
+                  onSave={handleSaveSalary}
+                  onGenerate={handleGeneratePayslip}
+                />
               </CardContent>
             </Card>
 
@@ -443,5 +375,116 @@ export function HrPayrollPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+type SalaryStructureFormProps = {
+  selectedSalary: SalaryStructure | null
+  employeeId: number | null
+  selectedEmployee: EmployeeProfile | null
+  configuredEmployeeIds: Set<number>
+  isSavingSalary: boolean
+  isGenerating: boolean
+  saveSalaryError: string | null
+  generateError: string | null
+  onSave: (values: {
+    baseSalary: string
+    hraPercent: string
+    transportAllowance: string
+    otherAllowance: string
+  }) => Promise<void>
+  onGenerate: () => Promise<void>
+}
+
+function SalaryStructureForm({
+  selectedSalary,
+  employeeId,
+  selectedEmployee,
+  configuredEmployeeIds,
+  isSavingSalary,
+  isGenerating,
+  saveSalaryError,
+  generateError,
+  onSave,
+  onGenerate,
+}: SalaryStructureFormProps) {
+  const [baseSalary, setBaseSalary] = useState(() => String(selectedSalary?.baseSalary ?? 50000))
+  const [hraPercent, setHraPercent] = useState(() => String(selectedSalary?.hraPercent ?? 40))
+  const [transportAllowance, setTransportAllowance] = useState(() =>
+    String(selectedSalary?.transportAllowance ?? 2000),
+  )
+  const [otherAllowance, setOtherAllowance] = useState(() => String(selectedSalary?.otherAllowance ?? 1000))
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault()
+    await onSave({ baseSalary, hraPercent, transportAllowance, otherAllowance })
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
+      <div className="space-y-2">
+        <Label htmlFor="baseSalary">Base salary (INR)</Label>
+        <Input
+          id="baseSalary"
+          type="number"
+          min="1"
+          className="rounded-xl"
+          value={baseSalary}
+          onChange={(e) => setBaseSalary(e.target.value)}
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="hraPercent">HRA %</Label>
+        <Input
+          id="hraPercent"
+          type="number"
+          min="0"
+          className="rounded-xl"
+          value={hraPercent}
+          onChange={(e) => setHraPercent(e.target.value)}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="transport">Transport allowance</Label>
+        <Input
+          id="transport"
+          type="number"
+          min="0"
+          className="rounded-xl"
+          value={transportAllowance}
+          onChange={(e) => setTransportAllowance(e.target.value)}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="other">Other allowance</Label>
+        <Input
+          id="other"
+          type="number"
+          min="0"
+          className="rounded-xl"
+          value={otherAllowance}
+          onChange={(e) => setOtherAllowance(e.target.value)}
+        />
+      </div>
+      <div className="flex flex-wrap gap-3 sm:col-span-2">
+        <Button type="submit" variant="gradient" className="rounded-full" disabled={!employeeId || isSavingSalary}>
+          {isSavingSalary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Banknote className="h-4 w-4" />}
+          Save salary structure
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="rounded-full"
+          disabled={!selectedEmployee || !configuredEmployeeIds.has(selectedEmployee.id) || isGenerating}
+          onClick={() => void onGenerate()}
+        >
+          {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Receipt className="h-4 w-4" />}
+          Generate payslip
+        </Button>
+      </div>
+      {saveSalaryError ? <p className="text-sm text-red-600 sm:col-span-2">{saveSalaryError}</p> : null}
+      {generateError ? <p className="text-sm text-red-600 sm:col-span-2">{generateError}</p> : null}
+    </form>
   )
 }

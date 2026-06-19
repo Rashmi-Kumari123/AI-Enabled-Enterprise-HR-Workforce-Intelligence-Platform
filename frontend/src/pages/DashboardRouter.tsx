@@ -1,4 +1,4 @@
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 import { EmployeeDashboardPage } from '@/pages/EmployeeDashboardPage'
 import { ManagerDashboardPage } from '@/pages/ManagerDashboardPage'
 export function DashboardRouter() {

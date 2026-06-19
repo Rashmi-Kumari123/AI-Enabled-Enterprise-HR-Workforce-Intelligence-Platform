@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 import * as aiApi from '@/lib/api/ai-insights-api'
 import { ApiError } from '@/lib/api/http'
 

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useNotifications } from '@/contexts/notification-context'
+import { useNotifications } from '@/hooks/use-notifications'
 import { useEmployeeProfile } from '@/hooks/use-employee-profile'
 import { cn } from '@/lib/utils'
 
@@ -54,13 +54,11 @@ export function ProfileSettingsPage() {
   const { account, profile, onboarding, documents, isLoading, profileMissing, profileError, profileLinked, roles, updatePhone, uploadDocument, isSaving,
     isUploading, saveError, uploadError, refetch } = useEmployeeProfile();
   const { connected, unreadCount, notifications } = useNotifications()
-  const [phone, setPhone] = useState('')
+  const [phoneDraft, setPhoneDraft] = useState<string | null>(null)
   const [prefs, setPrefs] = useState<NotificationPrefs>(loadPrefs)
   const [saved, setSaved] = useState(false)
   const [uploadValidationError, setUploadValidationError] = useState<string | null>(null)
-  useEffect(() => {
-    setPhone(profile?.phone ?? '')
-  }, [profile?.phone])
+  const phone = phoneDraft ?? profile?.phone ?? ''
 
   useEffect(() => {
     localStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(prefs))
@@ -69,6 +67,7 @@ export function ProfileSettingsPage() {
   async function handleSaveProfile() {
     setSaved(false)
     await updatePhone(phone.trim())
+    setPhoneDraft(null)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
@@ -181,7 +180,7 @@ export function ProfileSettingsPage() {
                     <Input
                       id="phone"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => setPhoneDraft(e.target.value)}
                       placeholder="+91 98765 43210"
                       className="rounded-xl"
                     />

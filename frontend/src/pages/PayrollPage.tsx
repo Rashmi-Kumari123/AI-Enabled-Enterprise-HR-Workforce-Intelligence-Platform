@@ -9,7 +9,7 @@ import { DashboardHero } from '@/components/layout/DashboardHero'
 import { SectionHeader } from '@/components/layout/SectionHeader'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 import { usePayroll } from '@/hooks/use-payroll'
 import type { DateRangePreset } from '@/lib/chart-utils'
 

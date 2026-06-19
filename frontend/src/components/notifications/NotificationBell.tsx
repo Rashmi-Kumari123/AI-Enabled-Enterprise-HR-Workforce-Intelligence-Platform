@@ -2,7 +2,7 @@ import { Bell, Mail } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
-import { useNotifications } from '@/contexts/notification-context'
+import { useNotifications } from '@/hooks/use-notifications'
 import { cn } from '@/lib/utils'
 const PANEL_WIDTH = 320
 const PANEL_GAP = 8

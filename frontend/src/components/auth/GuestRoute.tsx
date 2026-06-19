@@ -1,6 +1,6 @@
 import { Loader2 } from 'lucide-react'
 import { Navigate, Outlet } from 'react-router-dom'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 export function GuestRoute() {
   const { isAuthenticated, isLoading } = useAuth()
   if (isLoading) {

@@ -1,6 +1,7 @@
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useTheme, type Theme } from '@/contexts/theme-context'
+import type { Theme } from '@/contexts/theme-context'
+import { useTheme } from '@/hooks/use-theme'
 import { cn } from '@/lib/utils'
 type ThemeToggleProps = {
   compact?: boolean

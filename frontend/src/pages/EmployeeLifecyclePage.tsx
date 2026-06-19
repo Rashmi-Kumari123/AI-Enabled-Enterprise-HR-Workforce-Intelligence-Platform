@@ -5,7 +5,7 @@ import { StatusBadge } from '@/components/dashboard/StatusBadge'
 import { DashboardHero } from '@/components/layout/DashboardHero'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 import { useEmployeeLifecycle } from '@/hooks/use-employee-lifecycle'
 import { cn } from '@/lib/utils'
 

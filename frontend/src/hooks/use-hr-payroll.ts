@@ -27,24 +27,27 @@ export function useHrPayroll(selectedEmployeeId: number | null) {
     retry: false,
     refetchInterval: LIVE_REFETCH_MS,
   })
+  const employees = (employeesQuery.data ?? []).filter((e) => e.employmentStatus !== 'TERMINATED')
+  const effectiveEmployeeId =
+    selectedEmployeeId ?? (employees.length > 0 ? employees[0].id : null)
   const payslipsQuery = useQuery({
-    queryKey: ['payslips', selectedEmployeeId],
-    queryFn: () => payrollApi.fetchPayslips(selectedEmployeeId!),
-    enabled: Boolean(selectedEmployeeId),
+    queryKey: ['payslips', effectiveEmployeeId],
+    queryFn: () => payrollApi.fetchPayslips(effectiveEmployeeId!),
+    enabled: Boolean(effectiveEmployeeId),
     retry: false,
     refetchInterval: LIVE_REFETCH_MS,
   })
   const selectedSalaryQuery = useQuery({
-    queryKey: ['salary-structure', selectedEmployeeId],
-    queryFn: () => payrollApi.fetchSalaryStructure(selectedEmployeeId!),
-    enabled: Boolean(selectedEmployeeId),
+    queryKey: ['salary-structure', effectiveEmployeeId],
+    queryFn: () => payrollApi.fetchSalaryStructure(effectiveEmployeeId!),
+    enabled: Boolean(effectiveEmployeeId),
     retry: false,
   })
   const saveSalaryMutation = useMutation({
     mutationFn: (payload: SalaryStructureInput) => payrollApi.upsertSalaryStructure(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['salary-structures'] })
-      queryClient.invalidateQueries({ queryKey: ['salary-structure', selectedEmployeeId] })
+      queryClient.invalidateQueries({ queryKey: ['salary-structure', effectiveEmployeeId] })
     },
   })
   const generateMutation = useMutation({
@@ -59,14 +62,13 @@ export function useHrPayroll(selectedEmployeeId: number | null) {
       queryClient.invalidateQueries({ queryKey: ['payslips'] })
     },
   })
-  const employees = (employeesQuery.data ?? []).filter((e) => e.employmentStatus !== 'TERMINATED')
   const salaryStructures = salaryStructuresQuery.data ?? []
   const configuredEmployeeIds = new Set(salaryStructures.map((s) => s.employeeId))
   const payslips = payslipsQuery.data ?? []
-  const selectedEmployee = employees.find((e) => e.id === selectedEmployeeId) ?? null
+  const selectedEmployee = employees.find((e) => e.id === effectiveEmployeeId) ?? null
   const selectedSalary =
     selectedSalaryQuery.data ??
-    salaryStructures.find((s) => s.employeeId === selectedEmployeeId) ??
+    salaryStructures.find((s) => s.employeeId === effectiveEmployeeId) ??
     null
 
   const currentPeriodPayslip = payslips.find(

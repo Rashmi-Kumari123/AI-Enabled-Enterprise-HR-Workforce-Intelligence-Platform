@@ -6,23 +6,13 @@ import { DashboardHero } from '@/components/layout/DashboardHero'
 import { SectionHeader } from '@/components/layout/SectionHeader'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 import { useLeaveApprovals } from '@/hooks/use-leave-management'
 import { useManagerDashboard } from '@/hooks/use-manager-dashboard'
 
 export function ManagerDashboardPage() {
   const { hasRole } = useAuth()
-  const {
-    isLoading,
-    employees,
-    pendingLeaves,
-    metrics,
-    employeesFailed,
-    leavesFailed,
-    employeesError,
-    leavesError,
-    refetch,
-  } = useManagerDashboard()
+  const { isLoading, employees, pendingLeaves, metrics, employeesFailed, leavesFailed, employeesError, leavesError, refetch } = useManagerDashboard();
 
   const { approveLeave, rejectLeave, isApproving, isRejecting } = useLeaveApprovals()
   const [actingOnId, setActingOnId] = useState<number | null>(null)

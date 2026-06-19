@@ -4,7 +4,7 @@ import { DashboardHero } from '@/components/layout/DashboardHero'
 import { SectionHeader } from '@/components/layout/SectionHeader'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 import { usePlatformStatus, type PlatformStatusItem } from '@/hooks/use-platform-status'
 import { cn } from '@/lib/utils'
 

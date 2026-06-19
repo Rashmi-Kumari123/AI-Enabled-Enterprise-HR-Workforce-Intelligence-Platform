@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 import { usePerformance } from '@/hooks/use-performance'
 import { RATING_CRITERIA } from '@/lib/api/performance-api'
 
@@ -20,25 +20,8 @@ const DEFAULT_SCORES = Object.fromEntries(RATING_CRITERIA.map((c) => [c, 4])) as
 export function PerformancePage() {
   const { hasRole } = useAuth()
   const isManager = hasRole('HR') || hasRole('ADMIN') || hasRole('MANAGER')
-  const {
-    isLoading,
-    goals,
-    skills,
-    feedbackByType,
-    trendValues,
-    trendLabels,
-    latestReview,
-    pendingFeedback,
-    canAcknowledge,
-    metrics,
-    error,
-    acknowledgeReview,
-    isAcknowledging,
-    submitFeedback,
-    isSubmittingFeedback,
-    refetch,
-  } = usePerformance()
-
+  const { isLoading, goals, skills, feedbackByType, trendValues, trendLabels, latestReview, pendingFeedback, canAcknowledge, metrics, error, acknowledgeReview, isAcknowledging,
+    submitFeedback, isSubmittingFeedback, refetch } = usePerformance();
   const [activeFeedbackId, setActiveFeedbackId] = useState<number | null>(null)
   const [scores, setScores] = useState<Record<string, number>>(DEFAULT_SCORES)
   const [selfComment, setSelfComment] = useState('')

@@ -4,7 +4,7 @@ import { BrandLogo } from '@/components/layout/BrandLogo'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 
 type NavItem = { to: string; end?: boolean; icon: typeof LayoutDashboard; label: string; roles?: string[] }
@@ -113,7 +113,7 @@ export function AppLayout() {
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-medium">{user?.email}</p>
               <p className="text-[10px] text-muted-foreground">
-                {user?.roles.map((r) => r.replace('ROLE_', '')).join(', ')}
+                {user?.roles.map((r: string) => r.replace('ROLE_', '')).join(', ')}
               </p>
             </div>
           </div>

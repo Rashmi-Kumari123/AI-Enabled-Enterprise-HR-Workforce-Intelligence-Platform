@@ -2,7 +2,7 @@ import { Brain, GraduationCap, HeartPulse, Loader2, Sparkles, TrendingUp } from 
 import { AiInsightBanner } from '@/components/dashboard/AiInsightBanner'
 import { MetricCard } from '@/components/dashboard/MetricCard'
 import { DashboardHero } from '@/components/layout/DashboardHero'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 import { useWorkforceIntelligence } from '@/hooks/use-workforce-intelligence'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
