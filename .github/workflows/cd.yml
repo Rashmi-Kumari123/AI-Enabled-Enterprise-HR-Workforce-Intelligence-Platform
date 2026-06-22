@@ -1,5 +1,8 @@
 name: CD
 
+# Main-branch deploys run automatically from ci.yml after tests pass.
+# Use this workflow for tagged releases or manual redeploys.
+
 on:
   push:
     tags:
@@ -7,104 +10,94 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/nexushr
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-south-1' }}
+  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'nexushr-prod' }}
+  ECR_PREFIX: nexushr
+  IMAGE_TAG: ${{ github.ref_name }}
 
 jobs:
-  publish-images:
-    name: Build & push Docker images
+  deploy:
+    name: Deploy tagged release to EKS
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      matrix:
-        service:
-          - api-gateway
-          - auth-service
-          - employee-service
-          - attendance-service
-          - leave-service
-          - payroll-service
-          - performance-service
-          - ai-insights-service
-          - notification-service
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push ${{ matrix.service }}
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/Dockerfile.spring-service
-          build-args: SERVICE_MODULE=${{ matrix.service }}
-          push: true
-          tags: |
-            ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.ref_name }}
-            ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:latest
-
-  publish-frontend:
-    name: Build & push frontend
-    runs-on: ubuntu-latest
-    needs: publish-images
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push frontend
-        uses: docker/build-push-action@v6
-        with:
-          context: frontend
-          file: frontend/Dockerfile
-          push: true
-          tags: |
-            ${{ env.IMAGE_PREFIX }}/frontend:${{ github.ref_name }}
-            ${{ env.IMAGE_PREFIX }}/frontend:latest
-
-  deploy-eks:
-    name: Deploy to EKS (manual)
-    runs-on: ubuntu-latest
-    needs: [publish-images, publish-frontend]
-    if: github.event_name == 'workflow_dispatch'
     environment: production
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION || 'ap-south-1' }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push backend images
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          for module in api-gateway auth-service employee-service attendance-service leave-service payroll-service performance-service ai-insights-service notification-service; do
+            uri="${REGISTRY}/${ECR_PREFIX}-${module}"
+            docker build -f docker/Dockerfile.spring-service \
+              --build-arg "SERVICE_MODULE=${module}" \
+              -t "${uri}:${IMAGE_TAG}" \
+              -t "${uri}:latest" \
+              .
+            docker push "${uri}:${IMAGE_TAG}"
+            docker push "${uri}:latest"
+          done
 
       - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name ${{ vars.EKS_CLUSTER_NAME }} --region ${{ vars.AWS_REGION || 'ap-south-1' }}
+        run: aws eks update-kubeconfig --name "${EKS_CLUSTER_NAME}" --region "${AWS_REGION}"
 
       - name: Apply Kubernetes manifests
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
         run: |
+          set -euo pipefail
           kubectl apply -f k8s/namespace.yaml
           kubectl apply -f k8s/configmap.yaml
-          kubectl apply -f k8s/secrets.yaml
-          kubectl apply -f k8s/deployments.yaml
+          if [ -n "${DB_PASSWORD}" ]; then
+            kubectl create secret generic nexushr-secrets -n nexushr \
+              --from-literal=DB_PASSWORD="${DB_PASSWORD}" \
+              --from-literal=GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-admin}" \
+              --dry-run=client -o yaml | kubectl apply -f -
+          fi
+          kubectl apply -f k8s/infrastructure.yaml
+          sed "s|nexushr/|${REGISTRY}/${ECR_PREFIX}-|g" k8s/deployments.yaml | kubectl apply -f -
           kubectl apply -f k8s/hpa.yaml
           kubectl apply -f k8s/ingress.yaml
-          kubectl rollout status deployment/api-gateway -n nexushr --timeout=300s
+
+      - name: Build and push frontend
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          GATEWAY_HOST="$(kubectl get svc api-gateway -n nexushr -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)"
+          GATEWAY_URL="http://${GATEWAY_HOST:-localhost:8080}"
+          uri="${REGISTRY}/${ECR_PREFIX}-frontend"
+          docker build -f frontend/Dockerfile \
+            --build-arg "VITE_AUTH_API_URL=${GATEWAY_URL}" \
+            --build-arg "VITE_EMPLOYEE_API_URL=${GATEWAY_URL}" \
+            --build-arg "VITE_ATTENDANCE_API_URL=${GATEWAY_URL}" \
+            --build-arg "VITE_LEAVE_API_URL=${GATEWAY_URL}" \
+            --build-arg "VITE_PAYROLL_API_URL=${GATEWAY_URL}" \
+            --build-arg "VITE_PERFORMANCE_API_URL=${GATEWAY_URL}" \
+            --build-arg "VITE_NOTIFICATION_API_URL=${GATEWAY_URL}" \
+            --build-arg "VITE_AI_INSIGHTS_API_URL=${GATEWAY_URL}" \
+            -t "${uri}:${IMAGE_TAG}" \
+            -t "${uri}:latest" \
+            frontend
+          docker push "${uri}:${IMAGE_TAG}"
+          docker push "${uri}:latest"
+          kubectl set image deployment/frontend frontend="${uri}:latest" -n nexushr
+
+      - name: Wait for rollout
+        run: kubectl rollout status deployment/api-gateway -n nexushr --timeout=300s
