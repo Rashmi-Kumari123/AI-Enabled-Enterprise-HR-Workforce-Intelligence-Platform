@@ -1,5 +1,0 @@
-# NexusHR uses the root Dockerfile for all Java microservices.
-# This file prevents Nixpacks from auto-detecting Maven and using `java -jar target/*jar`.
-
-[phases.build]
-cmds = ["echo 'Use Dockerfile — set SERVICE_MODULE on this Railway service' && exit 1"]
