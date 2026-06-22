@@ -2,6 +2,7 @@ package nexusHR.employee.service;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import nexusHR.common.enums.EmploymentStatus;
+import nexusHR.common.tenant.TenantContext;
 import nexusHR.employee.dto.DepartmentResponse;
 import nexusHR.employee.dto.EmployeeProfileUpdateRequest;
 import nexusHR.employee.dto.EmployeeRequest;
@@ -23,7 +24,8 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public List<EmployeeResponse> findAll() {
-        return employeeRepository.findAll().stream().map(this::toResponse).toList();
+        Long tenantId = TenantContext.requireTenantId();
+        return employeeRepository.findAllByTenantId(tenantId).stream().map(this::toResponse).toList();
     }
     @Transactional(readOnly = true)
     public EmployeeResponse findById(Long id) {
@@ -31,9 +33,10 @@ public class EmployeeService {
     }
     @Transactional(readOnly = true)
     public EmployeeResponse findMyProfile(Long userId, String email) {
+        Long tenantId = TenantContext.requireTenantId();
         if (userId != null) {
             return employeeRepository
-                    .findByUserId(userId)
+                    .findByTenantIdAndUserId(tenantId, userId)
                     .map(this::toResponse)
                     .orElseGet(() -> findByEmail(email));
         }
@@ -42,22 +45,25 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public EmployeeResponse findByEmail(String email) {
+        Long tenantId = TenantContext.requireTenantId();
         return employeeRepository
-                .findByEmail(email.toLowerCase().trim())
+                .findByTenantIdAndEmail(tenantId, email.toLowerCase().trim())
                 .map(this::toResponse)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "No employee profile linked to this account"));
     }
     @Transactional
     public EmployeeResponse create(EmployeeRequest request) {
-        validateUniqueFields(null, request);
+        Long tenantId = TenantContext.requireTenantId();
+        validateUniqueFields(null, request, tenantId);
         Employee employee = new Employee();
+        employee.setTenantId(tenantId);
         applyRequest(employee, request);
         return toResponse(employeeRepository.save(employee));
     }
     @Transactional
     public EmployeeResponse update(Long id, EmployeeRequest request) {
         Employee employee = getEmployee(id);
-        validateUniqueFields(id, request);
+        validateUniqueFields(id, request, employee.getTenantId());
         applyRequest(employee, request);
         return toResponse(employee);
     }
@@ -68,16 +74,17 @@ public class EmployeeService {
         return toResponse(employee);
     }
     private Employee resolveOwnedEmployee(Long userId, String email) {
+        Long tenantId = TenantContext.requireTenantId();
         if (userId != null) {
             return employeeRepository
-                    .findByUserId(userId)
+                    .findByTenantIdAndUserId(tenantId, userId)
                     .orElseGet(() -> employeeRepository
-                            .findByEmail(email.toLowerCase().trim())
+                            .findByTenantIdAndEmail(tenantId, email.toLowerCase().trim())
                             .orElseThrow(() ->
                                     new ApiException(HttpStatus.NOT_FOUND, "No employee profile linked to this account")));
         }
         return employeeRepository
-                .findByEmail(email.toLowerCase().trim())
+                .findByTenantIdAndEmail(tenantId, email.toLowerCase().trim())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "No employee profile linked to this account"));
     }
     @Transactional
@@ -92,25 +99,28 @@ public class EmployeeService {
     }
     @Transactional(readOnly = true)
     public List<DepartmentResponse> findAllDepartments() {
-        return departmentRepository.findAll().stream().map(this::toDepartmentResponse).toList();
+        Long tenantId = TenantContext.requireTenantId();
+        return departmentRepository.findAllByTenantId(tenantId).stream().map(this::toDepartmentResponse).toList();
     }
+
     private Employee getEmployee(Long id) {
+        Long tenantId = TenantContext.requireTenantId();
         return employeeRepository
-                .findById(id)
+                .findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Employee not found"));
     }
-    private void validateUniqueFields(Long currentId, EmployeeRequest request) {
-        employeeRepository.findByEmployeeCode(request.employeeCode()).ifPresent(existing -> {
+    private void validateUniqueFields(Long currentId, EmployeeRequest request, Long tenantId) {
+        employeeRepository.findByTenantIdAndEmployeeCode(tenantId, request.employeeCode()).ifPresent(existing -> {
             if (currentId == null || !existing.getId().equals(currentId)) {
                 throw new ApiException(HttpStatus.CONFLICT, "Employee code already exists");
             }
         });
-        employeeRepository.findByUserId(request.userId()).ifPresent(existing -> {
+        employeeRepository.findByTenantIdAndUserId(tenantId, request.userId()).ifPresent(existing -> {
             if (currentId == null || !existing.getId().equals(currentId)) {
                 throw new ApiException(HttpStatus.CONFLICT, "User already linked to an employee");
             }
         });
-        employeeRepository.findByEmail(request.email().toLowerCase().trim()).ifPresent(existing -> {
+        employeeRepository.findByTenantIdAndEmail(tenantId, request.email().toLowerCase().trim()).ifPresent(existing -> {
             if (currentId == null || !existing.getId().equals(currentId)) {
                 throw new ApiException(HttpStatus.CONFLICT, "Email already registered");
             }
@@ -124,6 +134,9 @@ public class EmployeeService {
         employee.setEmail(request.email().toLowerCase().trim());
         employee.setPhone(request.phone());
         employee.setDepartment(resolveDepartment(request.departmentId()));
+        if (employee.getTenantId() == null && employee.getDepartment() != null) {
+            employee.setTenantId(employee.getDepartment().getTenantId());
+        }
         employee.setHireDate(request.hireDate());
         employee.setEmploymentStatus(
                 request.employmentStatus() != null ? request.employmentStatus() : EmploymentStatus.ACTIVE);
@@ -133,9 +146,14 @@ public class EmployeeService {
         if (departmentId == null) {
             return null;
         }
-        return departmentRepository
+        Department department = departmentRepository
                 .findById(departmentId)
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "Department not found"));
+        Long tenantId = TenantContext.requireTenantId();
+        if (!tenantId.equals(department.getTenantId())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Department not found");
+        }
+        return department;
     }
 
     private EmployeeResponse toResponse(Employee employee) {

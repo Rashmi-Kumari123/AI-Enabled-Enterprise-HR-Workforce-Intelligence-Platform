@@ -11,19 +11,20 @@ import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
 @Entity
 @Table(name = "departments")
 @Getter
 @Setter
 @NoArgsConstructor
 public class Department {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 64)
+    @Column(nullable = false)
+    private Long tenantId;
+
+    @Column(nullable = false, length = 64)
     private String code;
 
     @Column(nullable = false, length = 128)
@@ -38,7 +39,8 @@ public class Department {
     @Column(nullable = false)
     private Instant updatedAt;
 
-    public Department(String code, String name, String description) {
+    public Department(Long tenantId, String code, String name, String description) {
+        this.tenantId = tenantId;
         this.code = code;
         this.name = name;
         this.description = description;

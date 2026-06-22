@@ -1,5 +1,6 @@
 package nexusHR.auth.dto;
 public record InternalOnboardEmployeeRequest(
+        Long tenantId,
         Long userId,
         String firstName,
         String lastName,

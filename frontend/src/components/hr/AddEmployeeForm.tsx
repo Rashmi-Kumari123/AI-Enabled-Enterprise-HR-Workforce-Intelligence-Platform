@@ -18,6 +18,7 @@ export function AddEmployeeForm({ onHired }: AddEmployeeFormProps) {
   const departmentsQuery = useQuery({
     queryKey: ['departments'],
     queryFn: () => fetchDepartments(),
+    retry: 1,
   })
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -132,7 +133,7 @@ export function AddEmployeeForm({ onHired }: AddEmployeeFormProps) {
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               value={departmentId}
               onChange={(e) => setDepartmentId(e.target.value)}
-              disabled={departmentsQuery.isLoading}
+              disabled={departmentsQuery.isLoading || departmentsQuery.isError}
             >
               <option value="">Select department</option>
               {(departmentsQuery.data ?? []).map((dept) => (
@@ -141,6 +142,11 @@ export function AddEmployeeForm({ onHired }: AddEmployeeFormProps) {
                 </option>
               ))}
             </select>
+            {departmentsQuery.isError ? (
+              <p className="text-xs text-red-600 dark:text-red-400">
+                Could not load departments. Refresh the page or contact support.
+              </p>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor="hire-date">Hire date</Label>

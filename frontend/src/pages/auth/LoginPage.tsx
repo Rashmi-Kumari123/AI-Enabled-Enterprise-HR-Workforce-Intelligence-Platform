@@ -105,11 +105,14 @@ export function LoginPage() {
         </Link>
       </p>
       <p className="mt-3 text-center text-xs text-muted-foreground">
-        Demo: <code className="rounded bg-muted px-1">hr@nexushr.com</code> ·{' '}
-        <code className="rounded bg-muted px-1">manager@nexushr.com</code> ·{' '}
-        <code className="rounded bg-muted px-1">employee@nexushr.com</code>
+        Demo (password <code className="rounded bg-muted px-1">NexusHR@2026</code>):
         <br />
-        Password: <code className="rounded bg-muted px-1">NexusHR@2026</code>
+        <code className="rounded bg-muted px-1">@nexushr.com</code> ·{' '}
+        <code className="rounded bg-muted px-1">@beans.ai</code> ·{' '}
+        <code className="rounded bg-muted px-1">@klearnow.ai</code>
+        <br />
+        e.g. <code className="rounded bg-muted px-1">admin@beans.ai</code>,{' '}
+        <code className="rounded bg-muted px-1">hr@nexushr.com</code>
       </p>
     </div>
   )

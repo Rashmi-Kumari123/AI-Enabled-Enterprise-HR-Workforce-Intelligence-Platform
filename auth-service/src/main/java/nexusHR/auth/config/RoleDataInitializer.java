@@ -16,7 +16,8 @@ public class RoleDataInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        seedRole(RoleName.ROLE_ADMIN, "Platform administrator");
+        seedRole(RoleName.ROLE_PLATFORM_ADMIN, "NexusHR platform operator");
+        seedRole(RoleName.ROLE_ADMIN, "Tenant administrator");
         seedRole(RoleName.ROLE_HR, "Human resources staff");
         seedRole(RoleName.ROLE_MANAGER, "Team manager");
         seedRole(RoleName.ROLE_EMPLOYEE, "Standard employee");

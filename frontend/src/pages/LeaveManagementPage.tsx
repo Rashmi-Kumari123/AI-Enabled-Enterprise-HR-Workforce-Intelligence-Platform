@@ -79,7 +79,7 @@ export function LeaveManagementPage() {
                   <Label htmlFor="leaveType">Leave type</Label>
                   <select
                     id="leaveType"
-                    className="h-11 w-full rounded-xl border border-input bg-input px-3 text-sm"
+                    className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground dark:bg-input"
                     value={leaveType}
                     onChange={(e) => setLeaveType(e.target.value)}
                   >

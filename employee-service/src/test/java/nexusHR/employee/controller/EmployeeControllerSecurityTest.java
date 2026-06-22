@@ -4,7 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
+import nexusHR.common.tenant.TenantHeaders;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -12,16 +12,17 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
-
 @SpringBootTest
 @AutoConfigureMockMvc
 class EmployeeControllerSecurityTest {
+    private static final String TENANT_HEADER = TenantHeaders.TENANT_ID;
     @Autowired
     private MockMvc mockMvc;
     @Test
     @WithMockUser(roles = "HR")
     void hrCanCreateEmployee() throws Exception {
         mockMvc.perform(post("/api/v1/employees")
+                        .header(TENANT_HEADER, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -43,6 +44,7 @@ class EmployeeControllerSecurityTest {
     @WithMockUser(roles = "EMPLOYEE")
     void employeeCannotCreateEmployee() throws Exception {
         mockMvc.perform(post("/api/v1/employees")
+                        .header(TENANT_HEADER, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -59,12 +61,13 @@ class EmployeeControllerSecurityTest {
     @Test
     @WithMockUser(roles = "MANAGER")
     void managerCanListEmployees() throws Exception {
-        mockMvc.perform(get("/api/v1/employees")).andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/employees").header(TENANT_HEADER, "1")).andExpect(status().isOk());
     }
     @Test
     @WithMockUser(roles = "HR")
     void hrCanDeleteEmployee() throws Exception {
         var createResult = mockMvc.perform(post("/api/v1/employees")
+                        .header(TENANT_HEADER, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -82,6 +85,7 @@ class EmployeeControllerSecurityTest {
         String body = createResult.getResponse().getContentAsString();
         Number id = com.jayway.jsonpath.JsonPath.read(body, "$.id");
 
-        mockMvc.perform(delete("/api/v1/employees/" + id.longValue())).andExpect(status().isNoContent());
+        mockMvc.perform(delete("/api/v1/employees/" + id.longValue()).header(TENANT_HEADER, "1"))
+                .andExpect(status().isNoContent());
     }
 }

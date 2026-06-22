@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import nexusHR.common.tenant.TenantHeaders;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -17,6 +18,8 @@ import org.springframework.test.web.servlet.MvcResult;
 @SpringBootTest
 @AutoConfigureMockMvc
 class AuthControllerIntegrationTest {
+    private static final String TENANT_SLUG = "nexushr";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -27,21 +30,25 @@ class AuthControllerIntegrationTest {
     void signupLoginRefreshLogoutAndMe() throws Exception {
         String email = "day3.user@nexushr.com";
         mockMvc.perform(post("/api/v1/auth/signup")
+                        .header(TenantHeaders.TENANT_SLUG, TENANT_SLUG)
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
                                   "email": "%s",
                                   "password": "Password123!",
                                   "firstName": "Day",
-                                  "lastName": "Three"
+                                  "lastName": "Three",
+                                  "role": "HR"
                                 }
                                 """.formatted(email)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.refreshToken").isNotEmpty())
-                .andExpect(jsonPath("$.roles[0]").value("ROLE_EMPLOYEE"));
+                .andExpect(jsonPath("$.roles[0]").value("ROLE_HR"))
+                .andExpect(jsonPath("$.tenantSlug").value(TENANT_SLUG));
 
         MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
+                        .header(TenantHeaders.TENANT_SLUG, TENANT_SLUG)
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {"email": "%s", "password": "Password123!"}
@@ -53,7 +60,8 @@ class AuthControllerIntegrationTest {
         String accessToken = loginJson.get("accessToken").asText();
         String refreshToken = loginJson.get("refreshToken").asText();
 
-        mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + accessToken))
+        mockMvc.perform(get("/api/v1/users/me")
+                        .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(email));
 
@@ -73,40 +81,36 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Logged out successfully"));
     }
-    @Test
-    void employeeCannotAccessHrDashboardWithoutRole() throws Exception {
-        String email = "employee.only@nexushr.com";
 
-        MvcResult signup = mockMvc.perform(post("/api/v1/auth/signup")
+    @Test
+    void employeeSelfSignupIsRejected() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/signup")
+                        .header(TenantHeaders.TENANT_SLUG, TENANT_SLUG)
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
-                                  "email": "%s",
+                                  "email": "employee.only@nexushr.com",
                                   "password": "Password123!",
                                   "firstName": "Emp",
-                                  "lastName": "Only"
+                                  "lastName": "Only",
+                                  "role": "EMPLOYEE"
                                 }
-                                """.formatted(email)))
-                .andExpect(status().isCreated())
-                .andReturn();
-
-        String accessToken =
-                objectMapper.readTree(signup.getResponse().getContentAsString()).get("accessToken").asText();
-
-        mockMvc.perform(get("/api/v1/users/hr/dashboard").header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isForbidden());
+                                """))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void signupAssignsAdminRoleWhenEmailContainsAdminKeyword() throws Exception {
+    void signupAssignsSelectedAdminRole() throws Exception {
         mockMvc.perform(post("/api/v1/auth/signup")
+                        .header(TenantHeaders.TENANT_SLUG, TENANT_SLUG)
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
                                   "email": "admin.test@nexushr.com",
                                   "password": "Password123!",
                                   "firstName": "Admin",
-                                  "lastName": "User"
+                                  "lastName": "User",
+                                  "role": "ADMIN"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -114,15 +118,17 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void signupAssignsHrRoleWhenEmailContainsHrKeyword() throws Exception {
+    void signupAssignsSelectedHrRole() throws Exception {
         mockMvc.perform(post("/api/v1/auth/signup")
+                        .header(TenantHeaders.TENANT_SLUG, TENANT_SLUG)
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
                                   "email": "hr.user@nexushr.com",
                                   "password": "Password123!",
                                   "firstName": "HR",
-                                  "lastName": "User"
+                                  "lastName": "User",
+                                  "role": "HR"
                                 }
                                 """))
                 .andExpect(status().isCreated())

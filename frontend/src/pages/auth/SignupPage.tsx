@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/hooks/use-auth'
+import { signupRoleOptions, type SignupRole } from '@/lib/auth/signup-roles'
 import { ApiError } from '@/lib/api/http'
+import { cn } from '@/lib/utils'
 
 const authFieldClass =
   'h-11 rounded-xl border-border/80 bg-input text-foreground placeholder:text-muted-foreground'
@@ -18,8 +20,10 @@ export function SignupPage() {
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [role, setRole] = useState<SignupRole>('HR')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     setError(null)
@@ -34,6 +38,7 @@ export function SignupPage() {
         password,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
+        role,
       })
       navigate('/dashboard', { replace: true })
     } catch (err) {
@@ -42,6 +47,7 @@ export function SignupPage() {
       setIsSubmitting(false)
     }
   }
+
   return (
     <div className="p-6 md:p-8">
       <h2 className="text-2xl font-bold">Join NexusHR</h2>
@@ -92,6 +98,36 @@ export function SignupPage() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-medium leading-none">Your role</legend>
+          <p className="text-xs text-muted-foreground">
+            Choose how you will use NexusHR. This sets your dashboard and permissions.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {signupRoleOptions.map((option) => (
+              <label
+                key={option.value}
+                className={cn(
+                  'cursor-pointer rounded-xl border p-3 transition-colors',
+                  role === option.value
+                    ? 'border-brand-teal bg-brand-teal/10 ring-1 ring-brand-teal'
+                    : 'border-border/80 bg-input hover:border-brand-teal/50',
+                )}
+              >
+                <input
+                  type="radio"
+                  name="role"
+                  value={option.value}
+                  checked={role === option.value}
+                  onChange={() => setRole(option.value)}
+                  className="sr-only"
+                />
+                <span className="block text-sm font-semibold">{option.label}</span>
+                <span className="mt-1 block text-xs text-muted-foreground">{option.description}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
         {error ? (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
             {error}

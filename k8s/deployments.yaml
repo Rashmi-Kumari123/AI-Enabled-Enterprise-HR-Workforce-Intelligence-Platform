@@ -1,12 +1,11 @@
 # NexusHR Kubernetes manifests — apply order:
 #   kubectl apply -f k8s/namespace.yaml
 #   kubectl apply -f k8s/configmap.yaml
-#   kubectl apply -f k8s/secrets.yaml        # from secrets.example.yaml
+#   kubectl apply -f k8s/secrets.yaml
+#   kubectl apply -f k8s/infrastructure.yaml   # postgres + redis
 #   kubectl apply -f k8s/deployments.yaml
 #   kubectl apply -f k8s/hpa.yaml
 #   kubectl apply -f k8s/ingress.yaml
-#
-# Requires: PostgreSQL + Redis (RDS/ElastiCache or in-cluster). See deploy/aws/README.md
 
 ---
 apiVersion: apps/v1
@@ -15,7 +14,7 @@ metadata:
   name: auth-service
   namespace: nexushr
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: auth-service
@@ -27,7 +26,7 @@ spec:
       containers:
         - name: auth-service
           image: nexushr/auth-service:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 8081
           envFrom:
@@ -43,21 +42,22 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 384Mi
+              memory: 256Mi
             limits:
               cpu: 500m
-              memory: 768Mi
+              memory: 512Mi
           readinessProbe:
             httpGet:
               path: /api/v1/auth/health
               port: 8081
-            initialDelaySeconds: 30
+            initialDelaySeconds: 45
             periodSeconds: 10
+            failureThreshold: 6
           livenessProbe:
             httpGet:
               path: /api/v1/auth/health
               port: 8081
-            initialDelaySeconds: 60
+            initialDelaySeconds: 90
             periodSeconds: 20
 ---
 apiVersion: v1
@@ -78,7 +78,7 @@ metadata:
   name: employee-service
   namespace: nexushr
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: employee-service
@@ -90,7 +90,7 @@ spec:
       containers:
         - name: employee-service
           image: nexushr/employee-service:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 8082
           envFrom:
@@ -111,16 +111,17 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 384Mi
+              memory: 256Mi
             limits:
               cpu: 500m
-              memory: 768Mi
+              memory: 512Mi
           readinessProbe:
             httpGet:
               path: /api/v1/employees/health
               port: 8082
-            initialDelaySeconds: 30
+            initialDelaySeconds: 45
             periodSeconds: 10
+            failureThreshold: 6
       volumes:
         - name: uploads
           emptyDir: {}
@@ -143,7 +144,7 @@ metadata:
   name: api-gateway
   namespace: nexushr
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: api-gateway
@@ -155,7 +156,7 @@ spec:
       containers:
         - name: api-gateway
           image: nexushr/api-gateway:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           envFrom:
@@ -166,11 +167,11 @@ spec:
               value: "8080"
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 50m
+              memory: 128Mi
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 300m
+              memory: 256Mi
           readinessProbe:
             httpGet:
               path: /actuator/health
@@ -203,7 +204,7 @@ metadata:
   name: frontend
   namespace: nexushr
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: frontend
@@ -215,16 +216,16 @@ spec:
       containers:
         - name: frontend
           image: nexushr/frontend:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
           resources:
             requests:
-              cpu: 50m
-              memory: 64Mi
+              cpu: 25m
+              memory: 32Mi
             limits:
-              cpu: 200m
-              memory: 128Mi
+              cpu: 100m
+              memory: 64Mi
           readinessProbe:
             httpGet:
               path: /healthz
@@ -263,6 +264,7 @@ spec:
       containers:
         - name: notification-service
           image: nexushr/notification-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8089
           envFrom:
@@ -278,10 +280,17 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 384Mi
+              memory: 256Mi
             limits:
               cpu: 500m
-              memory: 768Mi
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /api/v1/notifications/health
+              port: 8089
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            failureThreshold: 6
 ---
 apiVersion: v1
 kind: Service
@@ -294,3 +303,301 @@ spec:
   ports:
     - port: 8089
       targetPort: 8089
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: attendance-service
+  namespace: nexushr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: attendance-service
+  template:
+    metadata:
+      labels:
+        app: attendance-service
+    spec:
+      containers:
+        - name: attendance-service
+          image: nexushr/attendance-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8084
+          envFrom:
+            - configMapRef:
+                name: nexushr-config
+            - secretRef:
+                name: nexushr-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8084"
+            - name: DB_URL
+              value: jdbc:postgresql://postgres:5432/nexus_attendance_db?sslmode=disable
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /api/v1/attendance/health
+              port: 8084
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            failureThreshold: 6
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: attendance-service
+  namespace: nexushr
+spec:
+  selector:
+    app: attendance-service
+  ports:
+    - port: 8084
+      targetPort: 8084
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payroll-service
+  namespace: nexushr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payroll-service
+  template:
+    metadata:
+      labels:
+        app: payroll-service
+    spec:
+      containers:
+        - name: payroll-service
+          image: nexushr/payroll-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8083
+          envFrom:
+            - configMapRef:
+                name: nexushr-config
+            - secretRef:
+                name: nexushr-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8083"
+            - name: DB_URL
+              value: jdbc:postgresql://postgres:5432/nexus_payroll_db?sslmode=disable
+            - name: PAYROLL_BATCH_ENABLED
+              value: "false"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /api/v1/payroll/health
+              port: 8083
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            failureThreshold: 6
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payroll-service
+  namespace: nexushr
+spec:
+  selector:
+    app: payroll-service
+  ports:
+    - port: 8083
+      targetPort: 8083
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: leave-service
+  namespace: nexushr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: leave-service
+  template:
+    metadata:
+      labels:
+        app: leave-service
+    spec:
+      containers:
+        - name: leave-service
+          image: nexushr/leave-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8085
+          envFrom:
+            - configMapRef:
+                name: nexushr-config
+            - secretRef:
+                name: nexushr-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8085"
+            - name: DB_URL
+              value: jdbc:postgresql://postgres:5432/nexus_leave_db?sslmode=disable
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /api/v1/leaves/health
+              port: 8085
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            failureThreshold: 6
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: leave-service
+  namespace: nexushr
+spec:
+  selector:
+    app: leave-service
+  ports:
+    - port: 8085
+      targetPort: 8085
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: performance-service
+  namespace: nexushr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: performance-service
+  template:
+    metadata:
+      labels:
+        app: performance-service
+    spec:
+      containers:
+        - name: performance-service
+          image: nexushr/performance-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8086
+          envFrom:
+            - configMapRef:
+                name: nexushr-config
+            - secretRef:
+                name: nexushr-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8086"
+            - name: DB_URL
+              value: jdbc:postgresql://postgres:5432/nexus_performance_db?sslmode=disable
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /api/v1/performance/health
+              port: 8086
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            failureThreshold: 6
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: performance-service
+  namespace: nexushr
+spec:
+  selector:
+    app: performance-service
+  ports:
+    - port: 8086
+      targetPort: 8086
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-insights-service
+  namespace: nexushr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-insights-service
+  template:
+    metadata:
+      labels:
+        app: ai-insights-service
+    spec:
+      containers:
+        - name: ai-insights-service
+          image: nexushr/ai-insights-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8088
+          envFrom:
+            - configMapRef:
+                name: nexushr-config
+            - secretRef:
+                name: nexushr-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8088"
+            - name: DB_URL
+              value: jdbc:postgresql://postgres:5432/nexus_ai_insights_db?sslmode=disable
+            - name: REPORT_SCHEDULER_ENABLED
+              value: "false"
+            - name: OPENAI_ENABLED
+              value: "false"
+            - name: HUGGINGFACE_ENABLED
+              value: "false"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /api/v1/ai/health
+              port: 8088
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 6
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-insights-service
+  namespace: nexushr
+spec:
+  selector:
+    app: ai-insights-service
+  ports:
+    - port: 8088
+      targetPort: 8088

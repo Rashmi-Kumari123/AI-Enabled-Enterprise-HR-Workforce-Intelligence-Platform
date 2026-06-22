@@ -7,19 +7,22 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import nexusHR.auth.dto.AuthResponse;
+import nexusHR.auth.dto.ChangePasswordRequest;
+import nexusHR.auth.dto.HireEmployeeRequest;
+import nexusHR.auth.dto.HireEmployeeResponse;
+import nexusHR.auth.dto.InternalOnboardEmployeeRequest;
 import nexusHR.auth.dto.LoginRequest;
 import nexusHR.auth.dto.MessageResponse;
 import nexusHR.auth.dto.RefreshTokenRequest;
-import nexusHR.auth.dto.HireEmployeeRequest;
-import nexusHR.auth.dto.HireEmployeeResponse;
 import nexusHR.auth.dto.SignupRequest;
+import nexusHR.auth.entity.Organization;
 import nexusHR.auth.entity.RefreshToken;
 import nexusHR.auth.entity.Role;
 import nexusHR.auth.entity.User;
 import nexusHR.auth.exception.ApiException;
-import nexusHR.auth.dto.InternalOnboardEmployeeRequest;
 import nexusHR.auth.integration.EmployeeOnboardResult;
 import nexusHR.auth.integration.EmployeeServiceClient;
+import nexusHR.auth.repository.OrganizationRepository;
 import nexusHR.auth.repository.RefreshTokenRepository;
 import nexusHR.auth.repository.RoleRepository;
 import nexusHR.auth.repository.UserRepository;
@@ -28,12 +31,14 @@ import nexusHR.auth.security.UserPrincipal;
 import nexusHR.auth.session.CachedSession;
 import nexusHR.auth.session.SessionCacheService;
 import nexusHR.common.enums.RoleName;
+import nexusHR.common.tenant.TenantContext;
 import nexusHR.common.util.EmailRoleHeuristic;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AuthService {
     private final UserRepository userRepository;
+    private final OrganizationRepository organizationRepository;
     private final RoleRepository roleRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
@@ -48,6 +54,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final SessionCacheService sessionCacheService;
     private final EmployeeServiceClient employeeServiceClient;
+    private final TenantService tenantService;
 
     @Value("${app.jwt.refresh-expiration-ms:604800000}")
     private long refreshExpirationMs;
@@ -57,20 +64,29 @@ public class AuthService {
 
     @Transactional
     public AuthResponse signup(SignupRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
-            throw new ApiException(HttpStatus.CONFLICT, "Email already registered");
+        Organization tenant = tenantService.requireById(TenantContext.requireTenantId());
+        String email = request.email().toLowerCase().trim();
+        if (userRepository.existsByTenantIdAndEmail(tenant.getId(), email)) {
+            throw new ApiException(HttpStatus.CONFLICT, "Email already registered in this organization");
         }
-        RoleName roleName = resolveRoleFromEmail(request.email());
+        RoleName roleName = request.role().toRoleName();
+        if (roleName == RoleName.ROLE_EMPLOYEE) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST, "Employees must be onboarded by HR. Use Add Employee instead.");
+        }
         Role assignedRole = roleRepository
                 .findByName(roleName)
-                .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Default role not configured"));
+                .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Role not configured"));
 
         User user = new User();
-        user.setEmail(request.email().toLowerCase().trim());
+        user.setTenant(tenant);
+        user.setEmail(email);
         user.setPassword(passwordEncoder.encode(request.password()));
         user.getRoles().add(assignedRole);
         userRepository.save(user);
+
         employeeServiceClient.onboardEmployee(new InternalOnboardEmployeeRequest(
+                tenant.getId(),
                 user.getId(),
                 request.firstName().trim(),
                 request.lastName().trim(),
@@ -85,15 +101,17 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
+        Long tenantId = TenantContext.requireTenantId();
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.email().toLowerCase().trim(), request.password()));
 
         UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
         User user = userRepository
-                .findByEmail(principal.getUsername())
+                .findByTenantIdAndEmail(tenantId, principal.getUsername())
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "User not found"));
 
         employeeServiceClient.provisionEmployee(new InternalOnboardEmployeeRequest(
+                tenantId,
                 user.getId(),
                 "",
                 "",
@@ -124,9 +142,9 @@ public class AuthService {
         refreshToken.setRevoked(true);
         refreshTokenRepository.save(refreshToken);
         sessionCacheService.invalidateAllForUser(user.getId());
+        TenantContext.setTenantId(user.getTenant().getId());
         return issueTokens(user);
     }
-
     @Transactional
     public MessageResponse logout(RefreshTokenRequest request) {
         refreshTokenRepository
@@ -139,24 +157,48 @@ public class AuthService {
         return new MessageResponse("Logged out successfully");
     }
     @Transactional
+    public MessageResponse changePassword(ChangePasswordRequest request) {
+        UserPrincipal principal = currentPrincipal();
+        User user = userRepository
+                .findById(principal.getId())
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "User not found"));
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Current password is incorrect");
+        }
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+        refreshTokenRepository.revokeAllActiveByUser(user);
+        sessionCacheService.invalidateAllForUser(user.getId());
+        return new MessageResponse("Password updated successfully");
+    }
+    @Transactional
     public HireEmployeeResponse hireEmployee(HireEmployeeRequest request) {
+        UserPrincipal principal = currentPrincipal();
+        Organization tenant = tenantService.requireById(principal.getTenantId());
+        ensureSeatAvailable(tenant);
+
         String email = request.email().toLowerCase().trim();
-        if (userRepository.existsByEmail(email)) {
-            throw new ApiException(HttpStatus.CONFLICT, "Email already registered");
+        if (userRepository.existsByTenantIdAndEmail(tenant.getId(), email)) {
+            throw new ApiException(HttpStatus.CONFLICT, "Email already registered in this organization");
         }
         Role employeeRole = roleRepository
                 .findByName(RoleName.ROLE_EMPLOYEE)
                 .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Employee role not configured"));
 
         User user = new User();
+        user.setTenant(tenant);
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(request.temporaryPassword()));
+        user.setMustChangePassword(true);
         user.getRoles().add(employeeRole);
         userRepository.save(user);
-
+        tenant.setSeatCount(tenant.getSeatCount() + 1);
+        organizationRepository.save(tenant);
         EmployeeOnboardResult employee;
         try {
             employee = employeeServiceClient.onboardEmployeeForHire(new InternalOnboardEmployeeRequest(
+                    tenant.getId(),
                     user.getId(),
                     request.firstName().trim(),
                     request.lastName().trim(),
@@ -183,6 +225,10 @@ public class AuthService {
                 "Employee hired successfully. Share login credentials securely.");
     }
 
+    @Transactional(readOnly = true)
+    public AuthResponse issueTokensForUser(User user) {
+        return issueTokens(user);
+    }
     private AuthResponse issueTokens(User user) {
         UserPrincipal principal = UserPrincipal.from(user);
         Set<String> roles =
@@ -203,7 +249,10 @@ public class AuthService {
                 "Bearer",
                 jwtService.getExpirationSeconds(),
                 user.getEmail(),
-                roles);
+                roles,
+                user.getTenant().getId(),
+                user.getTenant().getSlug(),
+                user.isMustChangePassword());
     }
 
     private String persistRefreshToken(User user) {
@@ -211,6 +260,18 @@ public class AuthService {
         Instant expiryAt = Instant.now().plusMillis(refreshExpirationMs);
         refreshTokenRepository.save(new RefreshToken(user, token, expiryAt));
         return token;
+    }
+    private void ensureSeatAvailable(Organization tenant) {
+        if (tenant.getSeatCount() >= tenant.getPlan().getMaxSeats()) {
+            throw new ApiException(HttpStatus.PAYMENT_REQUIRED, "Seat limit reached for current plan");
+        }
+    }
+    private static UserPrincipal currentPrincipal() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal instanceof UserPrincipal userPrincipal) {
+            return userPrincipal;
+        }
+        throw new ApiException(HttpStatus.UNAUTHORIZED, "Authentication required");
     }
 
     static RoleName resolveRoleFromEmail(String email) {

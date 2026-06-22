@@ -1,27 +1,50 @@
 import { apiConfig } from '@/lib/api/config'
 import { fetchAuthedJson } from '@/lib/api/authenticated'
 import { fetchJson } from '@/lib/api/http'
+import { setTenantSlug, tenantHeaders } from '@/lib/tenant/tenant'
 import { getAccessToken } from '@/lib/auth/storage'
-import type { AuthResponse, AuthUser, LoginRequest, SignupRequest } from '@/types/auth'
+import type { AuthResponse, AuthUser, ChangePasswordRequest, LoginRequest, SignupRequest, TenantRegisterRequest } from '@/types/auth'
 import type { HireEmployeeInput, HireEmployeeResponse } from '@/types/hr'
-
 const base = apiConfig.auth
-export async function signup(request: SignupRequest): Promise<AuthResponse> {
-  return fetchJson<AuthResponse>(`${base}/api/v1/auth/signup`, {
+function withTenant(email?: string, init?: RequestInit): RequestInit {
+  return {
+    ...init,
+    headers: {
+      ...tenantHeaders(email),
+      ...init?.headers,
+    },
+  }
+}
+export async function registerTenant(request: TenantRegisterRequest): Promise<AuthResponse> {
+  setTenantSlug(request.slug.toLowerCase())
+  return fetchJson<AuthResponse>(`${base}/api/v1/tenants/register`, withTenant(undefined, {
     method: 'POST',
     body: JSON.stringify(request),
-  })
+  }))
+}
+export async function signup(request: SignupRequest): Promise<AuthResponse> {
+  return fetchJson<AuthResponse>(`${base}/api/v1/auth/signup`, withTenant(request.email, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  }))
 }
 export async function login(request: LoginRequest): Promise<AuthResponse> {
-  return fetchJson<AuthResponse>(`${base}/api/v1/auth/login`, {
+  return fetchJson<AuthResponse>(`${base}/api/v1/auth/login`, withTenant(request.email, {
     method: 'POST',
     body: JSON.stringify(request),
-  })
+  }))
 }
 export async function logout(refreshToken: string): Promise<void> {
-  await fetchJson<{ message: string }>(`${base}/api/v1/auth/logout`, {
+  await fetchJson<{ message: string }>(`${base}/api/v1/auth/logout`, withTenant(undefined, {
     method: 'POST',
     body: JSON.stringify({ refreshToken }),
+  }))
+}
+export async function changePassword(request: ChangePasswordRequest): Promise<void> {
+  await fetchAuthedJson(`${base}/api/v1/auth/change-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...tenantHeaders() },
+    body: JSON.stringify(request),
   })
 }
 export async function fetchCurrentUser(): Promise<AuthUser> {

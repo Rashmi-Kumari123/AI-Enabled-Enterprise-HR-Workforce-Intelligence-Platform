@@ -4,10 +4,15 @@ metadata:
   name: nexushr-config
   namespace: nexushr
 data:
-  JWT_SECRET: change-me-in-production-min-32-chars-long
+  JWT_SECRET: nexushr-eks-jwt-secret-change-in-production-min-32-chars
+  CORS_ALLOWED_ORIGIN_PATTERNS: "http://localhost:*,http://127.0.0.1:*,http://*.ap-south-1.elb.amazonaws.com,http://*.elb.amazonaws.com,http://*.amazonaws.com,https://*.amazonaws.com,https://*.cloudfront.net,https://*.vercel.app"
   DB_USERNAME: postgres
+  DB_HOST: postgres
   REDIS_HOST: redis
   REDIS_PORT: "6379"
+  DEMO_SEED_ENABLED: "true"
+  SESSION_CACHE_ENABLED: "true"
+  NOTIFICATION_EMAIL_ENABLED: "false"
   NOTIFICATION_INTERNAL_KEY: nexushr-internal-dev-key
   LEAVE_INTERNAL_KEY: nexushr-internal-dev-key
   EMPLOYEE_INTERNAL_KEY: nexushr-internal-dev-key

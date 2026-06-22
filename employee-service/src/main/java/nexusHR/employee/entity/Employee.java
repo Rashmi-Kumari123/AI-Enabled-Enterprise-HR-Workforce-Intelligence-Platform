@@ -18,7 +18,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import nexusHR.common.enums.EmploymentStatus;
-
 @Entity
 @Table(name = "employees")
 @Getter
@@ -29,10 +28,13 @@ public class Employee {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
+    private Long tenantId;
+
+    @Column(nullable = false)
     private Long userId;
 
-    @Column(nullable = false, unique = true, length = 32)
+    @Column(nullable = false, length = 32)
     private String employeeCode;
 
     @Column(nullable = false, length = 128)
@@ -41,7 +43,7 @@ public class Employee {
     @Column(nullable = false, length = 128)
     private String lastName;
 
-    @Column(nullable = false, unique = true, length = 255)
+    @Column(nullable = false, length = 255)
     private String email;
 
     @Column(length = 32)

@@ -1,5 +1,6 @@
 import { ApiError, fetchJson, parseErrorMessage } from '@/lib/api/http'
 import { getAccessToken } from '@/lib/auth/storage'
+import { resolveTenantSlug } from '@/lib/tenant/tenant'
 function authHeaders(init?: RequestInit): HeadersInit {
   const token = getAccessToken()
   if (!token) {
@@ -7,6 +8,7 @@ function authHeaders(init?: RequestInit): HeadersInit {
   }
   return {
     Authorization: `Bearer ${token}`,
+    'X-Tenant-Slug': resolveTenantSlug(),
     ...init?.headers,
   }
 }

@@ -24,40 +24,34 @@ if [[ ! -f "${ROOT}/k8s/secrets.yaml" ]]; then
   exit 1
 fi
 
+registry="$(ecr_registry)"
+render_deployments() {
+  sed "s|nexushr/|${registry}/${ECR_PREFIX}-|g" "${ROOT}/k8s/deployments.yaml"
+}
+
 echo "Applying Kubernetes manifests..."
 kubectl apply -f "${ROOT}/k8s/namespace.yaml"
 kubectl apply -f "${ROOT}/k8s/configmap.yaml"
 kubectl apply -f "${ROOT}/k8s/secrets.yaml"
-kubectl apply -f "${ROOT}/k8s/deployments.yaml"
+kubectl apply -f "${ROOT}/k8s/infrastructure.yaml"
+echo "Waiting for Postgres + Redis..."
+kubectl wait --for=condition=available deployment/postgres -n nexushr --timeout=300s 2>/dev/null || true
+kubectl wait --for=condition=available deployment/redis -n nexushr --timeout=120s 2>/dev/null || true
+
+render_deployments | kubectl apply -f -
 kubectl apply -f "${ROOT}/k8s/hpa.yaml"
 kubectl apply -f "${ROOT}/k8s/ingress.yaml"
 
-echo "Updating deployment images to ECR..."
-registry="$(ecr_registry)"
-
-kubectl set image deployment/auth-service \
-  auth-service="${registry}/${ECR_PREFIX}-auth-service:${IMAGE_TAG}" \
-  -n nexushr
-kubectl set image deployment/employee-service \
-  employee-service="${registry}/${ECR_PREFIX}-employee-service:${IMAGE_TAG}" \
-  -n nexushr
-kubectl set image deployment/api-gateway \
-  api-gateway="${registry}/${ECR_PREFIX}-api-gateway:${IMAGE_TAG}" \
-  -n nexushr
-kubectl set image deployment/notification-service \
-  notification-service="${registry}/${ECR_PREFIX}-notification-service:${IMAGE_TAG}" \
-  -n nexushr
-kubectl set image deployment/frontend \
-  frontend="${registry}/${ECR_PREFIX}-frontend:${IMAGE_TAG}" \
-  -n nexushr
-
 echo "Waiting for api-gateway rollout..."
-kubectl rollout status deployment/api-gateway -n nexushr --timeout=300s
+kubectl rollout status deployment/api-gateway -n nexushr --timeout=300s || true
 
 echo ""
 echo "Deployments applied. Check status:"
 echo "  kubectl get pods -n nexushr"
 echo "  kubectl get svc -n nexushr"
 echo ""
-echo "Get load balancer URL:"
-echo "  kubectl get svc api-gateway -n nexushr"
+GATEWAY_URL="$(kubectl get svc api-gateway -n nexushr -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)"
+if [[ -n "${GATEWAY_URL}" ]]; then
+  echo "API Gateway: http://${GATEWAY_URL}"
+  echo "Health:      curl -s http://${GATEWAY_URL}/actuator/health"
+fi

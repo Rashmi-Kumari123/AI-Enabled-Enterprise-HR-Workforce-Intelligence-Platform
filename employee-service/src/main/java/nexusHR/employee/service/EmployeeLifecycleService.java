@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import nexusHR.common.enums.EmploymentStatus;
+import nexusHR.common.tenant.TenantContext;
 import nexusHR.common.util.EmailRoleHeuristic;
 import nexusHR.employee.dto.EmployeeOnboardingPipelineResponse;
 import nexusHR.employee.dto.EmployeeResponse;
@@ -45,17 +46,19 @@ public class EmployeeLifecycleService {
 
     @Transactional
     public EmployeeResponse onboard(InternalOnboardRequest request) {
-        employeeRepository.findByUserId(request.userId()).ifPresent(existing -> {
+        Long tenantId = resolveTenantId(request);
+        employeeRepository.findByTenantIdAndUserId(tenantId, request.userId()).ifPresent(existing -> {
             throw new ApiException(HttpStatus.CONFLICT, "User already linked to employee " + existing.getId());
         });
         Employee employee = new Employee();
+        employee.setTenantId(tenantId);
         employee.setUserId(request.userId());
         employee.setEmployeeCode(generateEmployeeCode(request.userId()));
         employee.setFirstName(request.firstName().trim());
         employee.setLastName(request.lastName().trim());
         employee.setEmail(request.email().toLowerCase().trim());
         employee.setPhone(request.phone());
-        employee.setDepartment(resolveDepartment(request.departmentId(), request.departmentCode()));
+        employee.setDepartment(resolveDepartment(tenantId, request.departmentId(), request.departmentCode()));
         employee.setHireDate(request.hireDate() != null ? request.hireDate() : LocalDate.now());
         boolean skipOnboarding = shouldSkipOnboarding(request);
         if (skipOnboarding) {
@@ -85,7 +88,8 @@ public class EmployeeLifecycleService {
     }
     @Transactional(readOnly = true)
     public List<EmployeeOnboardingPipelineResponse> getOnboardingPipeline() {
-        return employeeRepository.findByOnboardingCompletedFalseOrderByCreatedAtDesc().stream()
+        Long tenantId = TenantContext.requireTenantId();
+        return employeeRepository.findByTenantIdAndOnboardingCompletedFalseOrderByCreatedAtDesc(tenantId).stream()
                 .map(this::toPipelineResponse)
                 .toList();
     }
@@ -155,24 +159,27 @@ public class EmployeeLifecycleService {
 
     @Transactional(readOnly = true)
     public EmployeeResponse findByUserId(Long userId) {
+        Long tenantId = TenantContext.requireTenantId();
         return employeeRepository
-                .findByUserId(userId)
+                .findByTenantIdAndUserId(tenantId, userId)
                 .map(employee -> employeeService.findById(employee.getId()))
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Employee not found for user"));
     }
 
     @Transactional
     public EmployeeResponse provisionIfMissing(InternalOnboardRequest request) {
+        Long tenantId = resolveTenantId(request);
         return employeeRepository
-                .findByUserId(request.userId())
+                .findByTenantIdAndUserId(tenantId, request.userId())
                 .map(employee -> employeeService.findById(employee.getId()))
                 .orElseGet(() -> linkOrCreateEmployee(request));
     }
 
     private EmployeeResponse linkOrCreateEmployee(InternalOnboardRequest request) {
+        Long tenantId = resolveTenantId(request);
         String email = request.email().toLowerCase().trim();
         return employeeRepository
-                .findByEmail(email)
+                .findByTenantIdAndEmail(tenantId, email)
                 .map(existing -> {
                     if (existing.getUserId() != null && !existing.getUserId().equals(request.userId())) {
                         throw new ApiException(
@@ -192,7 +199,16 @@ public class EmployeeLifecycleService {
                 ? request.lastName().trim()
                 : "User";
         return new InternalOnboardRequest(
-                request.userId(), firstName, lastName, request.email(), request.phone(), request.departmentId(), request.departmentCode(), request.hireDate(), request.skipOnboarding());
+                request.tenantId(),
+                request.userId(),
+                firstName,
+                lastName,
+                request.email(),
+                request.phone(),
+                request.departmentId(),
+                request.departmentCode(),
+                request.hireDate(),
+                request.skipOnboarding());
     }
 
     private boolean shouldSkipOnboarding(InternalOnboardRequest request) {
@@ -277,25 +293,35 @@ public class EmployeeLifecycleService {
                 employee.getId()));
     }
     private Employee getEmployee(Long employeeId) {
+        Long tenantId = TenantContext.requireTenantId();
         return employeeRepository
-                .findById(employeeId)
+                .findByIdAndTenantId(employeeId, tenantId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Employee not found"));
     }
-    private Department resolveDepartment(Long departmentId, String departmentCode) {
+
+    private Department resolveDepartment(Long tenantId, Long departmentId, String departmentCode) {
         if (departmentId != null) {
-            return departmentRepository
+            Department department = departmentRepository
                     .findById(departmentId)
                     .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "Department not found"));
+            if (!tenantId.equals(department.getTenantId())) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Department not found");
+            }
+            return department;
         }
         if (departmentCode != null && !departmentCode.isBlank()) {
             return departmentRepository
-                    .findByCode(departmentCode.trim().toUpperCase())
+                    .findByTenantIdAndCode(tenantId, departmentCode.trim().toUpperCase())
                     .orElse(null);
         }
         return null;
     }
-    private Department resolveDepartment(Long departmentId) {
-        return resolveDepartment(departmentId, null);
+    private static Long resolveTenantId(InternalOnboardRequest request) {
+        if (request.tenantId() != null) {
+            TenantContext.setTenantId(request.tenantId());
+            return request.tenantId();
+        }
+        return TenantContext.requireTenantId();
     }
     private static String generateEmployeeCode(Long userId) {
         return "EMP-" + String.format("%05d", userId);

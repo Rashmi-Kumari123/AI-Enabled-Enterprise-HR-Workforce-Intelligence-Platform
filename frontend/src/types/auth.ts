@@ -13,6 +13,9 @@ export type AuthUser = {
 export type AuthResponse = AuthTokens & {
   email: string
   roles: string[]
+  tenantId?: number
+  tenantSlug?: string
+  mustChangePassword?: boolean
 }
 export type LoginRequest = {
   email: string
@@ -23,6 +26,19 @@ export type SignupRequest = {
   password: string
   firstName: string
   lastName: string
+  role: 'MANAGER' | 'HR' | 'ADMIN'
+}
+export type TenantRegisterRequest = {
+  companyName: string
+  slug: string
+  adminEmail: string
+  password: string
+  firstName: string
+  lastName: string
+}
+export type ChangePasswordRequest = {
+  currentPassword: string
+  newPassword: string
 }
 export type ApiErrorBody = {
   message?: string

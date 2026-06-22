@@ -2,12 +2,15 @@ package nexusHR.auth.config;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import nexusHR.auth.dto.InternalOnboardEmployeeRequest;
+import nexusHR.auth.entity.Organization;
 import nexusHR.auth.entity.Role;
 import nexusHR.auth.entity.User;
 import nexusHR.auth.integration.EmployeeServiceClient;
+import nexusHR.auth.repository.OrganizationRepository;
 import nexusHR.auth.repository.RoleRepository;
 import nexusHR.auth.repository.UserRepository;
 import nexusHR.common.enums.RoleName;
+import nexusHR.common.tenant.TenantContext;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -25,14 +28,14 @@ public class DemoUserInitializer implements ApplicationRunner {
     public static final String DEMO_PASSWORD = "NexusHR@2026";
 
     private final UserRepository userRepository;
+    private final OrganizationRepository organizationRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmployeeServiceClient employeeServiceClient;
 
     @Value("${app.demo.seed-enabled:true}")
     private boolean seedEnabled;
-
-    private record DemoAccount(String email, RoleName role, String firstName, String lastName, String departmentCode) {}
+    public record DemoAccount(String email, RoleName role, String firstName, String lastName, String departmentCode) {}
     private static final DemoAccount[] DEMO_ACCOUNTS = {
         new DemoAccount("admin@nexushr.com", RoleName.ROLE_ADMIN, "Aarav", "Admin", "IT"),
         new DemoAccount("hr@nexushr.com", RoleName.ROLE_HR, "Priya", "Sharma", "HR"),
@@ -45,13 +48,19 @@ public class DemoUserInitializer implements ApplicationRunner {
         if (!seedEnabled) {
             return;
         }
+        Organization tenant = organizationRepository
+                .findBySlugIgnoreCase("nexushr")
+                .orElseThrow(() -> new IllegalStateException("Default nexushr tenant missing"));
+        TenantContext.setTenantId(tenant.getId());
+        employeeServiceClient.seedTenantDepartments(tenant.getId(), tenant.getSlug());
+
         for (DemoAccount account : DEMO_ACCOUNTS) {
-            seedDemoAccount(account);
+            seedDemoAccount(tenant, account);
         }
     }
-    private void seedDemoAccount(DemoAccount account) {
+    private void seedDemoAccount(Organization tenant, DemoAccount account) {
         String email = account.email().toLowerCase().trim();
-        if (userRepository.existsByEmail(email)) {
+        if (userRepository.existsByTenantIdAndEmail(tenant.getId(), email)) {
             return;
         }
         Role role = roleRepository
@@ -59,12 +68,14 @@ public class DemoUserInitializer implements ApplicationRunner {
                 .orElseThrow(() -> new IllegalStateException("Role not configured: " + account.role()));
 
         User user = new User();
+        user.setTenant(tenant);
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(DEMO_PASSWORD));
         user.getRoles().add(role);
         User saved = userRepository.save(user);
-
+        tenant.setSeatCount(tenant.getSeatCount() + 1);
         employeeServiceClient.onboardEmployee(new InternalOnboardEmployeeRequest(
+                tenant.getId(),
                 saved.getId(),
                 account.firstName(),
                 account.lastName(),

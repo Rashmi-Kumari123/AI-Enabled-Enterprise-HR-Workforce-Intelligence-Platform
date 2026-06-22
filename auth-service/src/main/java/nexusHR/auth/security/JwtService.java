@@ -1,5 +1,4 @@
 package nexusHR.auth.security;
-
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -50,6 +49,8 @@ public class JwtService {
                 .expiration(expiry);
         if (userDetails instanceof UserPrincipal principal) {
             builder.claim("userId", principal.getId());
+            builder.claim("tenantId", principal.getTenantId());
+            builder.claim("tenantSlug", principal.getTenantSlug());
         }
         return builder.signWith(signingKey).compact();
     }
@@ -64,6 +65,14 @@ public class JwtService {
 
     public String extractSessionId(String token) {
         return extractClaim(token, Claims::getId);
+    }
+
+    public Long extractTenantId(String token) {
+        Object tenantId = extractClaim(token, claims -> claims.get("tenantId"));
+        if (tenantId instanceof Number number) {
+            return number.longValue();
+        }
+        return null;
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {

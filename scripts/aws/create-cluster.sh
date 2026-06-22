@@ -26,7 +26,7 @@ eksctl create cluster \
   --region "${AWS_REGION}" \
   --version 1.31 \
   --nodegroup-name standard \
-  --node-type t3.medium \
+  --node-type "${EKS_NODE_TYPE:-t3.small}" \
   --nodes 2 \
   --nodes-min 1 \
   --nodes-max 4 \

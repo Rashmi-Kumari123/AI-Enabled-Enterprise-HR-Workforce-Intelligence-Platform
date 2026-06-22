@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { AppLayout } from '@/layouts/AppLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { LoginPage } from '@/pages/auth/LoginPage'
+import { ChangePasswordPage, CompanyRegisterPage } from '@/pages/auth/CompanyAuthPages'
 import { SignupPage } from '@/pages/auth/SignupPage'
 import { AiAssistantPage } from '@/pages/AiAssistantPage'
 import { AnalyticsReportsPage } from '@/pages/AnalyticsReportsPage'
@@ -31,15 +32,18 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/splash" replace />} />
       <Route path="/splash" element={<SplashPage />} />
-
       <Route element={<GuestRoute />}>
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<CompanyRegisterPage />} />
           <Route path="/signup" element={<SignupPage />} />
         </Route>
       </Route>
 
       <Route element={<ProtectedRoute />}>
+        <Route element={<AuthLayout />}>
+          <Route path="/change-password" element={<ChangePasswordPage />} />
+        </Route>
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardRouter />} />
           <Route path="/dashboard/employee" element={<EmployeeDashboardPage />} />
@@ -62,7 +66,6 @@ export default function App() {
           <Route path="/dashboard/profile" element={<ProfileSettingsPage />} />
         </Route>
       </Route>
-
       <Route path="*" element={<Navigate to="/splash" replace />} />
     </Routes>
   )

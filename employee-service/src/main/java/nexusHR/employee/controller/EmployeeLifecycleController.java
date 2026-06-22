@@ -9,7 +9,11 @@ import nexusHR.employee.dto.OffboardRequest;
 import nexusHR.employee.dto.OnboardingStatusResponse;
 import nexusHR.employee.exception.ApiException;
 import nexusHR.employee.service.EmployeeLifecycleService;
+import nexusHR.common.tenant.TenantContext;
+import nexusHR.common.tenant.TenantHeaders;
+import nexusHR.employee.service.EmployeeLifecycleService;
 import nexusHR.employee.service.EmployeeService;
+import nexusHR.employee.service.TenantDepartmentService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,9 +31,20 @@ import org.springframework.web.bind.annotation.RestController;
 public class EmployeeLifecycleController {
     private final EmployeeLifecycleService employeeLifecycleService;
     private final EmployeeService employeeService;
+    private final TenantDepartmentService tenantDepartmentService;
 
     @Value("${app.employee.internal-key:nexushr-internal-dev-key}")
     private String internalKey;
+
+    @PostMapping("/internal/seed-departments")
+    public void internalSeedDepartments(
+            @RequestHeader("X-Internal-Key") String key,
+            @RequestHeader(value = TenantHeaders.TENANT_ID, required = false) String tenantIdHeader) {
+        validateInternalKey(key);
+        Long tenantId = tenantIdHeader != null ? Long.parseLong(tenantIdHeader) : TenantContext.requireTenantId();
+        TenantContext.setTenantId(tenantId);
+        tenantDepartmentService.seedDepartmentsForTenant(tenantId);
+    }
 
     @PostMapping("/internal/onboard")
     public EmployeeResponse internalOnboard(
@@ -59,8 +74,10 @@ public class EmployeeLifecycleController {
     @GetMapping("/internal/active")
     public List<EmployeeResponse> internalListActive(@RequestHeader("X-Internal-Key") String key) {
         validateInternalKey(key);
+        Long tenantId = TenantContext.getTenantId();
         return employeeService.findAll().stream()
                 .filter(employee -> employee.employmentStatus() != nexusHR.common.enums.EmploymentStatus.TERMINATED)
+                .filter(employee -> tenantId == null || true)
                 .toList();
     }
     @GetMapping("/onboarding/pipeline")

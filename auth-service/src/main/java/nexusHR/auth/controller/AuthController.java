@@ -8,10 +8,13 @@ import nexusHR.auth.dto.HireEmployeeResponse;
 import nexusHR.auth.dto.LoginRequest;
 import nexusHR.auth.dto.MessageResponse;
 import nexusHR.auth.dto.RefreshTokenRequest;
+import nexusHR.auth.dto.ChangePasswordRequest;
 import nexusHR.auth.dto.SignupRequest;
 import nexusHR.auth.service.AuthService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import nexusHR.auth.security.UserPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -55,5 +58,11 @@ public class AuthController {
     @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
     public HireEmployeeResponse hire(@Valid @RequestBody HireEmployeeRequest request) {
         return authService.hireEmployee(request);
+    }
+    @PostMapping("/change-password")
+    @PreAuthorize("isAuthenticated()")
+    public MessageResponse changePassword(
+            @Valid @RequestBody ChangePasswordRequest request, @AuthenticationPrincipal UserPrincipal principal) {
+        return authService.changePassword(request);
     }
 }

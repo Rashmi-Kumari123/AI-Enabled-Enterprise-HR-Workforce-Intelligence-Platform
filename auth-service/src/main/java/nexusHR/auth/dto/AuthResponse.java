@@ -6,4 +6,7 @@ public record AuthResponse(
         String tokenType,
         long expiresInSeconds,
         String email,
-        Set<String> roles) {}
+        java.util.Set<String> roles,
+        Long tenantId,
+        String tenantSlug,
+        boolean mustChangePassword) {}

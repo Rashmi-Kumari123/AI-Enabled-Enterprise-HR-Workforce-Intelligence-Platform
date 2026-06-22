@@ -3,6 +3,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import nexusHR.common.tenant.TenantContext;
 import nexusHR.employee.dto.EmployeeProfileUpdateRequest;
 import nexusHR.employee.dto.EmployeeProvisionRequest;
 import nexusHR.employee.dto.EmployeeRequest;
@@ -63,7 +64,19 @@ public class EmployeeController {
             throw new nexusHR.employee.exception.ApiException(
                     HttpStatus.BAD_REQUEST, "Sign in again — account ID missing from session");
         }
+        Long tenantId = TenantContext.getTenantId();
+        if (tenantId == null) {
+            String header = request.getHeader("Authorization");
+            if (header != null && header.startsWith("Bearer ")) {
+                tenantId = jwtService.extractTenantId(header.substring(7));
+            }
+        }
+        if (tenantId == null) {
+            throw new nexusHR.employee.exception.ApiException(
+                    HttpStatus.BAD_REQUEST, "Tenant context missing — sign in again");
+        }
         return employeeLifecycleService.provisionIfMissing(new InternalOnboardRequest(
+                tenantId,
                 userId,
                 body.firstName(),
                 body.lastName(),
@@ -74,7 +87,6 @@ public class EmployeeController {
                 null,
                 false));
     }
-
     private Long extractUserId(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
         if (header == null || !header.startsWith("Bearer ")) {

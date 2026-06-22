@@ -6,8 +6,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     Optional<Employee> findByEmployeeCode(String employeeCode);
+    Optional<Employee> findByTenantIdAndEmployeeCode(Long tenantId, String employeeCode);
     Optional<Employee> findByUserId(Long userId);
+    Optional<Employee> findByTenantIdAndUserId(Long tenantId, Long userId);
     Optional<Employee> findByEmail(String email);
+    Optional<Employee> findByTenantIdAndEmail(Long tenantId, String email);
+    Optional<Employee> findByIdAndTenantId(Long id, Long tenantId);
     boolean existsByEmail(String email);
+    boolean existsByTenantIdAndEmail(Long tenantId, String email);
+    List<Employee> findAllByTenantId(Long tenantId);
     List<Employee> findByOnboardingCompletedFalseOrderByCreatedAtDesc();
+    List<Employee> findByTenantIdAndOnboardingCompletedFalseOrderByCreatedAtDesc(Long tenantId);
 }
