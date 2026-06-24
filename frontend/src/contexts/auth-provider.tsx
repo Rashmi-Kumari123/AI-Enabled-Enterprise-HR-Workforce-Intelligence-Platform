@@ -22,7 +22,7 @@ async function loadStoredUser(): Promise<AuthUser | null> {
     const profile = await authApi.fetchCurrentUser()
     const slug = getTenantSlugFromToken()
     if (slug) {
-      setTenantSlug(slug)
+      setTenantSlug()
     }
     return profile
   } catch (error) {
@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (request: LoginRequest) => {
     const response = await authApi.login(request)
     if (response.tenantSlug) {
-      setTenantSlug(response.tenantSlug)
+      setTenantSlug()
     }
     setTokens(response.accessToken, response.refreshToken, Boolean(response.mustChangePassword))
     try {
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signup = useCallback(async (request: SignupRequest) => {
     const response = await authApi.signup(request)
     if (response.tenantSlug) {
-      setTenantSlug(response.tenantSlug)
+      setTenantSlug()
     }
     setTokens(response.accessToken, response.refreshToken, Boolean(response.mustChangePassword))
     try {

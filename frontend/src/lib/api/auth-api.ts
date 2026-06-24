@@ -6,29 +6,29 @@ import { getAccessToken } from '@/lib/auth/storage'
 import type { AuthResponse, AuthUser, ChangePasswordRequest, LoginRequest, SignupRequest } from '@/types/auth'
 import type { HireEmployeeInput, HireEmployeeResponse } from '@/types/hr'
 const base = apiConfig.auth
-function withTenant(email?: string, init?: RequestInit): RequestInit {
+function withTenant(init?: RequestInit): RequestInit {
   return {
     ...init,
     headers: {
-      ...tenantHeaders(email),
+      ...tenantHeaders(),
       ...init?.headers,
     },
   }
 }
 export async function signup(request: SignupRequest): Promise<AuthResponse> {
-  return fetchJson<AuthResponse>(`${base}/api/v1/auth/signup`, withTenant(request.email, {
+  return fetchJson<AuthResponse>(`${base}/api/v1/auth/signup`, withTenant({
     method: 'POST',
     body: JSON.stringify(request),
   }))
 }
 export async function login(request: LoginRequest): Promise<AuthResponse> {
-  return fetchJson<AuthResponse>(`${base}/api/v1/auth/login`, withTenant(request.email, {
+  return fetchJson<AuthResponse>(`${base}/api/v1/auth/login`, withTenant({
     method: 'POST',
     body: JSON.stringify(request),
   }))
 }
 export async function logout(refreshToken: string): Promise<void> {
-  await fetchJson<{ message: string }>(`${base}/api/v1/auth/logout`, withTenant(undefined, {
+  await fetchJson<{ message: string }>(`${base}/api/v1/auth/logout`, withTenant({
     method: 'POST',
     body: JSON.stringify({ refreshToken }),
   }))
