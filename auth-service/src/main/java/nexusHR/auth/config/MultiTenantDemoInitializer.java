@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 @Order(3)
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "app.demo.seed-enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "app.demo.multi-tenant-enabled", havingValue = "true", matchIfMissing = false)
 public class MultiTenantDemoInitializer implements ApplicationRunner {
     public static final String DEMO_PASSWORD = DemoUserInitializer.DEMO_PASSWORD;
     private final OrganizationRepository organizationRepository;

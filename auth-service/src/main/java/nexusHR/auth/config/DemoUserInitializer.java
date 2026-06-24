@@ -60,31 +60,34 @@ public class DemoUserInitializer implements ApplicationRunner {
     }
     private void seedDemoAccount(Organization tenant, DemoAccount account) {
         String email = account.email().toLowerCase().trim();
-        if (userRepository.existsByTenantIdAndEmail(tenant.getId(), email)) {
-            return;
-        }
         Role role = roleRepository
                 .findByName(account.role())
                 .orElseThrow(() -> new IllegalStateException("Role not configured: " + account.role()));
 
-        User user = new User();
-        user.setTenant(tenant);
-        user.setEmail(email);
-        user.setPassword(passwordEncoder.encode(DEMO_PASSWORD));
-        user.getRoles().add(role);
-        User saved = userRepository.save(user);
-        tenant.setSeatCount(tenant.getSeatCount() + 1);
-        employeeServiceClient.onboardEmployee(new InternalOnboardEmployeeRequest(
+        User user = userRepository
+                .findByTenantIdAndEmail(tenant.getId(), email)
+                .orElseGet(() -> {
+                    User created = new User();
+                    created.setTenant(tenant);
+                    created.setEmail(email);
+                    created.setPassword(passwordEncoder.encode(DEMO_PASSWORD));
+                    created.getRoles().add(role);
+                    User saved = userRepository.save(created);
+                    tenant.setSeatCount(tenant.getSeatCount() + 1);
+                    log.info("Seeded demo account {} ({})", email, account.role());
+                    return saved;
+                });
+
+        employeeServiceClient.provisionEmployee(new InternalOnboardEmployeeRequest(
                 tenant.getId(),
-                saved.getId(),
+                user.getId(),
                 account.firstName(),
                 account.lastName(),
-                saved.getEmail(),
+                user.getEmail(),
                 null,
                 null,
                 account.departmentCode(),
                 null,
                 account.role() != RoleName.ROLE_EMPLOYEE));
-        log.info("Seeded demo account {} ({})", email, account.role());
     }
 }

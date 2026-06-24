@@ -4,7 +4,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { AppLayout } from '@/layouts/AppLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { LoginPage } from '@/pages/auth/LoginPage'
-import { ChangePasswordPage, CompanyRegisterPage } from '@/pages/auth/CompanyAuthPages'
+import { ChangePasswordPage } from '@/pages/auth/CompanyAuthPages'
 import { SignupPage } from '@/pages/auth/SignupPage'
 import { AiAssistantPage } from '@/pages/AiAssistantPage'
 import { AnalyticsReportsPage } from '@/pages/AnalyticsReportsPage'
@@ -35,7 +35,6 @@ export default function App() {
       <Route element={<GuestRoute />}>
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<CompanyRegisterPage />} />
           <Route path="/signup" element={<SignupPage />} />
         </Route>
       </Route>

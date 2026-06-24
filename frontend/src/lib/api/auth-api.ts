@@ -1,9 +1,9 @@
 import { apiConfig } from '@/lib/api/config'
 import { fetchAuthedJson } from '@/lib/api/authenticated'
 import { fetchJson } from '@/lib/api/http'
-import { setTenantSlug, tenantHeaders } from '@/lib/tenant/tenant'
+import { tenantHeaders } from '@/lib/tenant/tenant'
 import { getAccessToken } from '@/lib/auth/storage'
-import type { AuthResponse, AuthUser, ChangePasswordRequest, LoginRequest, SignupRequest, TenantRegisterRequest } from '@/types/auth'
+import type { AuthResponse, AuthUser, ChangePasswordRequest, LoginRequest, SignupRequest } from '@/types/auth'
 import type { HireEmployeeInput, HireEmployeeResponse } from '@/types/hr'
 const base = apiConfig.auth
 function withTenant(email?: string, init?: RequestInit): RequestInit {
@@ -14,13 +14,6 @@ function withTenant(email?: string, init?: RequestInit): RequestInit {
       ...init?.headers,
     },
   }
-}
-export async function registerTenant(request: TenantRegisterRequest): Promise<AuthResponse> {
-  setTenantSlug(request.slug.toLowerCase())
-  return fetchJson<AuthResponse>(`${base}/api/v1/tenants/register`, withTenant(undefined, {
-    method: 'POST',
-    body: JSON.stringify(request),
-  }))
 }
 export async function signup(request: SignupRequest): Promise<AuthResponse> {
   return fetchJson<AuthResponse>(`${base}/api/v1/auth/signup`, withTenant(request.email, {

@@ -29,7 +29,7 @@ public class OrganizationDataInitializer implements ApplicationRunner {
 
         if (!organizationRepository.existsBySlugIgnoreCase("nexushr")) {
             Organization organization = new Organization();
-            organization.setName("NexusHR Demo");
+            organization.setName("NexusHR");
             organization.setSlug("nexushr");
             organization.setPlan(starter);
             organization.setSeatCount(0);

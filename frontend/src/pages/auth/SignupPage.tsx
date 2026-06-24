@@ -51,7 +51,9 @@ export function SignupPage() {
   return (
     <div className="p-6 md:p-8">
       <h2 className="text-2xl font-bold">Join NexusHR</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Create your enterprise workforce account</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Register as HR, Manager, or Admin for the NexusHR organization.
+      </p>
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -84,7 +86,7 @@ export function SignupPage() {
             className={authFieldClass}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="employee@nexushr.com"
+            placeholder="you@nexushr.com"
           />
         </div>
         <div className="space-y-2">

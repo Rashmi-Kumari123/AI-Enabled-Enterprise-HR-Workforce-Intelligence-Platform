@@ -26,9 +26,10 @@ public class TenantSlugResolverFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         if (TenantContext.getTenantId() == null) {
             String slug = request.getHeader(TenantHeaders.TENANT_SLUG);
-            if (slug != null && !slug.isBlank()) {
-                TenantContext.setTenantId(tenantService.requireBySlug(slug).getId());
+            if (slug == null || slug.isBlank()) {
+                slug = "nexushr";
             }
+            TenantContext.setTenantId(tenantService.requireBySlug(slug).getId());
         }
         filterChain.doFilter(request, response);
     }

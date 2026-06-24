@@ -1,7 +1,7 @@
-# NexusHR — local infrastructure + optional full stack
+# NexusHR — full stack
 #
-# Infra only:     docker compose up -d
-# Full platform:  docker compose --profile app up -d --build
+# Infra only:     docker compose up -d postgres redis mailhog
+# Full platform:  docker compose up -d --build   (Postgres host :5433, Redis host :6380)
 # Monitoring:     docker compose --profile monitoring up -d
 
 x-java-env: &java-env
@@ -34,7 +34,7 @@ services:
       POSTGRES_USER: ${DB_USERNAME:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-admin123}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - ./scripts/postgres/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
       - postgres_data:/var/lib/postgresql/data
@@ -50,7 +50,7 @@ services:
     image: redis:7-alpine
     container_name: nexushr-redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -69,7 +69,6 @@ services:
       - nexushr
 
   auth-service:
-    profiles: ["app"]
     <<: *java-service
     build:
       context: .
@@ -87,7 +86,6 @@ services:
       - "8081:8081"
 
   employee-service:
-    profiles: ["app"]
     <<: *java-service
     build:
       context: .
@@ -107,7 +105,6 @@ services:
       - "8082:8082"
 
   payroll-service:
-    profiles: ["app"]
     <<: *java-service
     build:
       context: .
@@ -126,7 +123,6 @@ services:
       - "8083:8083"
 
   attendance-service:
-    profiles: ["app"]
     <<: *java-service
     build:
       context: .
@@ -145,7 +141,6 @@ services:
       - "8084:8084"
 
   leave-service:
-    profiles: ["app"]
     <<: *java-service
     build:
       context: .
@@ -164,7 +159,6 @@ services:
       - "8085:8085"
 
   performance-service:
-    profiles: ["app"]
     <<: *java-service
     build:
       context: .
@@ -182,7 +176,6 @@ services:
       - "8086:8086"
 
   ai-insights-service:
-    profiles: ["app"]
     <<: *java-service
     build:
       context: .
@@ -204,7 +197,6 @@ services:
       - "8088:8088"
 
   notification-service:
-    profiles: ["app"]
     <<: *java-service
     build:
       context: .
@@ -224,7 +216,6 @@ services:
       - "8089:8089"
 
   api-gateway:
-    profiles: ["app"]
     <<: *java-service
     build:
       context: .
@@ -250,7 +241,6 @@ services:
       - employee-service
 
   frontend:
-    profiles: ["app"]
     build:
       context: frontend
       dockerfile: Dockerfile

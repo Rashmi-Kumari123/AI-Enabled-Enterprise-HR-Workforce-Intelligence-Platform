@@ -2,15 +2,14 @@ package nexusHR.employee.controller;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import nexusHR.common.tenant.TenantContext;
+import nexusHR.common.tenant.TenantHeaders;
 import nexusHR.employee.dto.EmployeeOnboardingPipelineResponse;
 import nexusHR.employee.dto.EmployeeResponse;
 import nexusHR.employee.dto.InternalOnboardRequest;
 import nexusHR.employee.dto.OffboardRequest;
 import nexusHR.employee.dto.OnboardingStatusResponse;
 import nexusHR.employee.exception.ApiException;
-import nexusHR.employee.service.EmployeeLifecycleService;
-import nexusHR.common.tenant.TenantContext;
-import nexusHR.common.tenant.TenantHeaders;
 import nexusHR.employee.service.EmployeeLifecycleService;
 import nexusHR.employee.service.EmployeeService;
 import nexusHR.employee.service.TenantDepartmentService;
@@ -41,9 +40,8 @@ public class EmployeeLifecycleController {
             @RequestHeader("X-Internal-Key") String key,
             @RequestHeader(value = TenantHeaders.TENANT_ID, required = false) String tenantIdHeader) {
         validateInternalKey(key);
-        Long tenantId = tenantIdHeader != null ? Long.parseLong(tenantIdHeader) : TenantContext.requireTenantId();
-        TenantContext.setTenantId(tenantId);
-        tenantDepartmentService.seedDepartmentsForTenant(tenantId);
+        applyInternalTenant(tenantIdHeader);
+        tenantDepartmentService.seedDepartmentsForTenant(TenantContext.requireTenantId());
     }
 
     @PostMapping("/internal/onboard")
@@ -60,24 +58,31 @@ public class EmployeeLifecycleController {
     }
     @GetMapping("/internal/by-user/{userId}")
     public EmployeeResponse internalFindByUser(
-            @RequestHeader("X-Internal-Key") String key, @PathVariable Long userId) {
+            @RequestHeader("X-Internal-Key") String key,
+            @RequestHeader(value = TenantHeaders.TENANT_ID, required = false) String tenantIdHeader,
+            @PathVariable Long userId) {
         validateInternalKey(key);
+        applyInternalTenant(tenantIdHeader);
         return employeeLifecycleService.findByUserId(userId);
     }
     @GetMapping("/internal/{employeeId}")
     public EmployeeResponse internalFindById(
-            @RequestHeader("X-Internal-Key") String key, @PathVariable Long employeeId) {
+            @RequestHeader("X-Internal-Key") String key,
+            @RequestHeader(value = TenantHeaders.TENANT_ID, required = false) String tenantIdHeader,
+            @PathVariable Long employeeId) {
         validateInternalKey(key);
+        applyInternalTenant(tenantIdHeader);
         return employeeService.findById(employeeId);
     }
 
     @GetMapping("/internal/active")
-    public List<EmployeeResponse> internalListActive(@RequestHeader("X-Internal-Key") String key) {
+    public List<EmployeeResponse> internalListActive(
+            @RequestHeader("X-Internal-Key") String key,
+            @RequestHeader(value = TenantHeaders.TENANT_ID, required = false) String tenantIdHeader) {
         validateInternalKey(key);
-        Long tenantId = TenantContext.getTenantId();
+        applyInternalTenant(tenantIdHeader);
         return employeeService.findAll().stream()
                 .filter(employee -> employee.employmentStatus() != nexusHR.common.enums.EmploymentStatus.TERMINATED)
-                .filter(employee -> tenantId == null || true)
                 .toList();
     }
     @GetMapping("/onboarding/pipeline")
@@ -104,6 +109,16 @@ public class EmployeeLifecycleController {
     private void validateInternalKey(String key) {
         if (!internalKey.equals(key)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Invalid internal key");
+        }
+    }
+
+    private void applyInternalTenant(String tenantIdHeader) {
+        if (tenantIdHeader != null && !tenantIdHeader.isBlank()) {
+            TenantContext.setTenantId(Long.parseLong(tenantIdHeader.trim()));
+            return;
+        }
+        if (TenantContext.getTenantId() == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Tenant context missing — send X-Tenant-Id");
         }
     }
 }

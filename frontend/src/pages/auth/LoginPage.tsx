@@ -11,6 +11,15 @@ import { ApiError } from '@/lib/api/http'
 const authFieldClass =
   'h-11 rounded-xl border-border/80 bg-input text-foreground placeholder:text-muted-foreground'
 
+const DEMO_ACCOUNTS = [
+  { role: 'Admin', email: 'admin@nexushr.com' },
+  { role: 'HR', email: 'hr@nexushr.com' },
+  { role: 'Manager', email: 'manager@nexushr.com' },
+  { role: 'Employee', email: 'employee@nexushr.com' },
+] as const
+
+const DEMO_PASSWORD = 'NexusHR@2026'
+
 export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
@@ -34,11 +43,12 @@ export function LoginPage() {
       setIsSubmitting(false)
     }
   }
+
   return (
     <div className="p-6 md:p-8">
-      <h2 className="text-2xl font-bold">Welcome Back to NexusHR</h2>
+      <h2 className="text-2xl font-bold">Welcome to NexusHR</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Manage people, performance, and productivity from one platform.
+        Sign in to your company workspace.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
@@ -52,16 +62,11 @@ export function LoginPage() {
             className={authFieldClass}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@company.com"
+            placeholder="you@nexushr.com"
           />
         </div>
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">Password</Label>
-            <button type="button" className="text-xs font-medium text-brand-teal hover:underline">
-              Forgot password?
-            </button>
-          </div>
+          <Label htmlFor="password">Password</Label>
           <PasswordInput
             id="password"
             autoComplete="current-password"
@@ -71,10 +76,6 @@ export function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <input type="checkbox" className="rounded border-border" defaultChecked />
-          Remember me
-        </label>
         {error ? (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
             {error}
@@ -86,33 +87,23 @@ export function LoginPage() {
         </Button>
       </form>
 
-      <div className="mt-6 space-y-3">
-        <p className="text-center text-xs text-muted-foreground">Or continue with</p>
-        <div className="grid grid-cols-2 gap-3">
-          <Button type="button" variant="outline" className="rounded-xl bg-white dark:bg-card">
-            Google
-          </Button>
-          <Button type="button" variant="outline" className="rounded-xl bg-white dark:bg-card">
-            Microsoft
-          </Button>
-        </div>
+      <div className="mt-8 rounded-xl border border-border/60 bg-muted/20 p-4">
+        <p className="text-xs font-medium text-muted-foreground">Demo accounts (password: {DEMO_PASSWORD})</p>
+        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+          {DEMO_ACCOUNTS.map((account) => (
+            <li key={account.email}>
+              <span className="font-medium text-foreground">{account.role}:</span>{' '}
+              <code className="rounded bg-muted px-1">{account.email}</code>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        New to NexusHR?{' '}
+        HR or Manager self-registration?{' '}
         <Link to="/signup" className="font-semibold text-brand-teal hover:underline">
           Create account
         </Link>
-      </p>
-      <p className="mt-3 text-center text-xs text-muted-foreground">
-        Demo (password <code className="rounded bg-muted px-1">NexusHR@2026</code>):
-        <br />
-        <code className="rounded bg-muted px-1">@nexushr.com</code> ·{' '}
-        <code className="rounded bg-muted px-1">@beans.ai</code> ·{' '}
-        <code className="rounded bg-muted px-1">@klearnow.ai</code>
-        <br />
-        e.g. <code className="rounded bg-muted px-1">admin@beans.ai</code>,{' '}
-        <code className="rounded bg-muted px-1">hr@nexushr.com</code>
       </p>
     </div>
   )

@@ -3,6 +3,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.Collections;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import nexusHR.common.tenant.TenantHeaders;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -11,18 +12,24 @@ import org.springframework.web.client.RestClient;
 public class EmployeeServiceClient {
     private final RestClient restClient;
     private final String internalKey;
+    private final long demoTenantId;
+
     public EmployeeServiceClient(
             @Value("${app.services.employee-url:http://localhost:8082}") String employeeUrl,
-            @Value("${app.employee.internal-key:nexushr-internal-dev-key}") String internalKey) {
+            @Value("${app.employee.internal-key:nexushr-internal-dev-key}") String internalKey,
+            @Value("${app.demo.tenant-id:1}") long demoTenantId) {
         this.internalKey = internalKey;
+        this.demoTenantId = demoTenantId;
         this.restClient = RestClient.builder().baseUrl(employeeUrl).build();
     }
+
     public EmployeeSnapshot fetchEmployee(Long employeeId) {
         try {
             return restClient
                     .get()
                     .uri("/api/v1/employees/internal/{id}", employeeId)
                     .header("X-Internal-Key", internalKey)
+                    .header(TenantHeaders.TENANT_ID, String.valueOf(demoTenantId))
                     .retrieve()
                     .body(EmployeeSnapshot.class);
         } catch (Exception ex) {
@@ -36,6 +43,7 @@ public class EmployeeServiceClient {
                     .get()
                     .uri("/api/v1/employees/internal/active")
                     .header("X-Internal-Key", internalKey)
+                    .header(TenantHeaders.TENANT_ID, String.valueOf(demoTenantId))
                     .retrieve()
                     .body(EmployeeSnapshot[].class);
             if (employees == null) {
