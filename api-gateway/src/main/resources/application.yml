@@ -59,6 +59,10 @@ spring:
 server:
   port: ${PORT:${SERVER_PORT:8080}}
 
+app:
+  jwt:
+    secret: ${JWT_SECRET:yPZl/g1HfzCIKrRuuCOcdOjcLUfb4xEdgdGgSu1tToe8jovFisN9877lPwHX61jmtYuBZ8iuqWHclKMk/13psA==}
+
 management:
   endpoints:
     web:

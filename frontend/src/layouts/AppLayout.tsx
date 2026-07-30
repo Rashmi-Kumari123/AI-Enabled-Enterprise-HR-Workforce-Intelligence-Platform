@@ -1,19 +1,21 @@
-import { BarChart3, Banknote, Bot, Brain, Building2, Calendar, ClipboardList, Clock, IndianRupee, LayoutDashboard, LogOut, Megaphone, Settings, Sparkles, Star, UserCircle, Users } from 'lucide-react';
+import { BarChart3, Banknote, Bot, Brain, Building2, Calendar, ClipboardList, Clock, IndianRupee, LayoutDashboard, LogOut, Megaphone, Settings, Shield, Sparkles, Star, UserCircle, Users } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { BrandLogo } from '@/components/layout/BrandLogo'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
+import { usePermissions, type AppModule } from '@/hooks/use-permissions'
 import { cn } from '@/lib/utils'
+import { resolveTenantSlug } from '@/lib/tenant/tenant'
 
-type NavItem = { to: string; end?: boolean; icon: typeof LayoutDashboard; label: string; roles?: string[] }
+type NavItem = { to: string; end?: boolean; icon: typeof LayoutDashboard; label: string; module?: AppModule }
 
 export function AppLayout() {
-  const { user, logout, hasRole } = useAuth()
+  const { user, logout } = useAuth()
+  const { canAccess, isHrAdmin, isManagerView, isPayrollOps, isExecutiveOnly } = usePermissions()
   const navigate = useNavigate()
-  const isManager = hasRole('HR') || hasRole('ADMIN') || hasRole('MANAGER')
-  const isHrAdmin = hasRole('HR') || hasRole('ADMIN')
+  const tenantSlug = resolveTenantSlug()
 
   async function handleLogout() {
     await logout()
@@ -24,46 +26,54 @@ export function AppLayout() {
     {
       title: 'Overview',
       items: [
-        { to: '/dashboard', end: true, icon: LayoutDashboard, label: 'Home' },
-        ...(isManager
-          ? [{ to: '/dashboard/manager', icon: Users, label: 'Team Overview' }]
-          : [{ to: '/dashboard/employee', icon: UserCircle, label: 'My Workspace' }]),
-        ...(isHrAdmin ? [{ to: '/dashboard/hr-admin', icon: Building2, label: 'Command Center' }] : []),
+        { to: '/dashboard', end: true, icon: LayoutDashboard, label: 'Home', module: 'DASHBOARD' },
+        ...(isManagerView && !isExecutiveOnly
+          ? [{ to: '/dashboard/manager', icon: Users, label: 'Team Overview', module: 'DASHBOARD' as AppModule }]
+          : !isExecutiveOnly
+            ? [{ to: '/dashboard/employee', icon: UserCircle, label: 'My Workspace', module: 'DASHBOARD' as AppModule }]
+            : []),
+        ...(isHrAdmin ? [{ to: '/dashboard/hr-admin', icon: Building2, label: 'Command Center', module: 'DASHBOARD' as AppModule }] : []),
       ],
     },
     {
       title: 'People & Time',
       items: [
-        ...(isHrAdmin ? [{ to: '/dashboard/lifecycle', icon: ClipboardList, label: 'Lifecycle', roles: ['HR', 'ADMIN'] as string[] }] : []),
-        ...(isHrAdmin ? [{ to: '/dashboard/announcements', icon: Megaphone, label: 'Announcements', roles: ['HR', 'ADMIN'] as string[] }] : []),
-        { to: '/dashboard/directory', icon: Users, label: 'Directory', roles: ['HR', 'ADMIN', 'MANAGER'] },
-        { to: '/dashboard/attendance', icon: Clock, label: 'Attendance' },
-        { to: '/dashboard/leave', icon: Calendar, label: 'Leave' },
+        ...(isHrAdmin ? [{ to: '/dashboard/lifecycle', icon: ClipboardList, label: 'Lifecycle', module: 'EMPLOYEES' as AppModule }] : []),
+        ...(isHrAdmin ? [{ to: '/dashboard/announcements', icon: Megaphone, label: 'Announcements', module: 'EMPLOYEES' as AppModule }] : []),
+        { to: '/dashboard/directory', icon: Users, label: 'Directory', module: 'EMPLOYEES' },
+        { to: '/dashboard/attendance', icon: Clock, label: 'Attendance', module: 'ATTENDANCE' },
+        { to: '/dashboard/leave', icon: Calendar, label: 'Leave', module: 'LEAVE' },
       ],
     },
     {
       title: 'Compensation & Growth',
       items: [
-        { to: '/dashboard/payroll', end: true, icon: IndianRupee, label: 'Payroll' },
-        ...(isHrAdmin ? [{ to: '/dashboard/payroll/operations', icon: Banknote, label: 'Payroll Ops', roles: ['HR', 'ADMIN'] as string[] }] : []),
-        { to: '/dashboard/performance', end: true, icon: Sparkles, label: 'Performance' },
-        ...(isManager ? [{ to: '/dashboard/performance/operations', icon: Star, label: 'Review Ops', roles: ['HR', 'ADMIN', 'MANAGER'] as string[] }] : []),
+        { to: '/dashboard/payroll', end: true, icon: IndianRupee, label: 'Payroll', module: 'PAYROLL' },
+        ...(isPayrollOps ? [{ to: '/dashboard/payroll/operations', icon: Banknote, label: 'Payroll Ops', module: 'PAYROLL' as AppModule }] : []),
+        { to: '/dashboard/performance', end: true, icon: Sparkles, label: 'Performance', module: 'PERFORMANCE' },
+        ...(isManagerView ? [{ to: '/dashboard/performance/operations', icon: Star, label: 'Review Ops', module: 'PERFORMANCE' as AppModule }] : []),
       ],
     },
     {
       title: 'Intelligence',
       items: [
-        { to: '/dashboard/intelligence', icon: Brain, label: 'AI Intelligence', roles: ['HR', 'ADMIN', 'MANAGER'] },
-        ...(isManager ? [{ to: '/dashboard/insights', icon: Brain, label: 'Deep Insights' }] : []),
-        { to: '/dashboard/ai-assistant', icon: Bot, label: 'Nexus AI' },
-        ...(isManager ? [{ to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' }] : []),
+        { to: '/dashboard/intelligence', icon: Brain, label: 'AI Intelligence', module: 'ANALYTICS' },
+        ...(isManagerView ? [{ to: '/dashboard/insights', icon: Brain, label: 'Deep Insights', module: 'ANALYTICS' as AppModule }] : []),
+        { to: '/dashboard/ai-assistant', icon: Bot, label: 'Nexus AI', module: 'AI_CHATBOT' },
+        ...(canAccess('ANALYTICS') ? [{ to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics', module: 'ANALYTICS' as AppModule }] : []),
+      ],
+    },
+    {
+      title: 'Administration',
+      items: [
+        ...(canAccess('USER_MANAGEMENT') ? [{ to: '/dashboard/profile', icon: Shield, label: 'Users & Security', module: 'USER_MANAGEMENT' as AppModule }] : []),
       ],
     },
     {
       title: 'Account',
       items: [
-        { to: '/dashboard/notifications', icon: Sparkles, label: 'Notifications' },
-        { to: '/dashboard/profile', icon: Settings, label: 'Profile & Settings' },
+        { to: '/dashboard/notifications', icon: Sparkles, label: 'Notifications', module: 'DASHBOARD' },
+        { to: '/dashboard/profile', icon: Settings, label: 'Profile & Settings', module: 'DASHBOARD' },
       ],
     },
   ]
@@ -83,17 +93,21 @@ export function AppLayout() {
           <BrandLogo showTagline />
           <NotificationBell />
         </div>
+        <p className="mt-2 truncate px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          {tenantSlug}
+        </p>
 
         <nav className="mt-6 flex flex-1 flex-col gap-5 overflow-y-auto">
-          {navSections.map((section) => (
+          {navSections.map((section) => {
+            const items = section.items.filter((item) => !item.module || canAccess(item.module))
+            if (items.length === 0) return null
+            return (
             <div key={section.title}>
               <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-foreground/50">
                 {section.title}
               </p>
               <div className="flex flex-col gap-0.5">
-                {section.items
-                  .filter((item) => !item.roles || item.roles.some((role) => hasRole(role)))
-                  .map((item) => (
+                {items.map((item) => (
                   <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
                     <item.icon className="h-4 w-4 shrink-0" />
                     {item.label}
@@ -101,7 +115,7 @@ export function AppLayout() {
                 ))}
               </div>
             </div>
-          ))}
+          )})}
         </nav>
 
         <div className="mt-auto space-y-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
@@ -118,28 +132,15 @@ export function AppLayout() {
             </div>
           </div>
           <Button variant="outline" size="sm" className="w-full rounded-full" onClick={handleLogout}>
-            <LogOut className="h-4 w-4" />
+            <LogOut className="mr-2 h-4 w-4" />
             Sign out
           </Button>
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-border/60 bg-card px-4 py-3 lg:hidden">
-          <BrandLogo linkTo="/dashboard" />
-          <div className="flex items-center gap-2">
-            <NotificationBell />
-            <ThemeToggle compact />
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-auto">
-          <Outlet />
-        </main>
-      </div>
+      <main className="flex min-w-0 flex-1 flex-col">
+        <Outlet />
+      </main>
     </div>
   )
 }

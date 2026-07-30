@@ -4,7 +4,7 @@ import * as authApi from '@/lib/api/auth-api'
 import { ApiError } from '@/lib/api/http'
 import { clearTokens, getRefreshToken, hasStoredSession, setTokens } from '@/lib/auth/storage';
 import { clearTenantSlug, getTenantSlugFromToken, setTenantSlug } from '@/lib/tenant/tenant'
-import type { AuthResponse, AuthUser, LoginRequest, SignupRequest } from '@/types/auth'
+import type { AuthResponse, AuthUser, LoginRequest, SignupRequest, TenantRegisterRequest } from '@/types/auth'
 
 function toUser(response: AuthResponse): AuthUser {
   return {
@@ -22,7 +22,7 @@ async function loadStoredUser(): Promise<AuthUser | null> {
     const profile = await authApi.fetchCurrentUser()
     const slug = getTenantSlugFromToken()
     if (slug) {
-      setTenantSlug()
+      setTenantSlug(slug)
     }
     return profile
   } catch (error) {
@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (request: LoginRequest) => {
     const response = await authApi.login(request)
     if (response.tenantSlug) {
-      setTenantSlug()
+      setTenantSlug(response.tenantSlug)
     }
     setTokens(response.accessToken, response.refreshToken, Boolean(response.mustChangePassword))
     try {
@@ -65,7 +65,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signup = useCallback(async (request: SignupRequest) => {
     const response = await authApi.signup(request)
     if (response.tenantSlug) {
-      setTenantSlug()
+      setTenantSlug(response.tenantSlug)
+    }
+    setTokens(response.accessToken, response.refreshToken, Boolean(response.mustChangePassword))
+    try {
+      const profile = await authApi.fetchCurrentUser()
+      setUser(profile)
+    } catch {
+      setUser(toUser(response))
+    }
+  }, [])
+
+  const registerCompany = useCallback(async (request: TenantRegisterRequest) => {
+    const response = await authApi.registerCompany(request)
+    if (response.tenantSlug) {
+      setTenantSlug(response.tenantSlug)
     }
     setTokens(response.accessToken, response.refreshToken, Boolean(response.mustChangePassword))
     try {
@@ -97,6 +111,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [user],
   )
-  const value = useMemo(() => ({ user, isAuthenticated: Boolean(user), isLoading, login, signup, logout, hasRole }), [user, isLoading, login, signup, logout, hasRole])
+  const value = useMemo(
+    () => ({ user, isAuthenticated: Boolean(user), isLoading, login, signup, registerCompany, logout, hasRole }),
+    [user, isLoading, login, signup, registerCompany, logout, hasRole],
+  )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -32,6 +32,8 @@ data:
   MAIL_HOST: mailhog
   MAIL_PORT: "1025"
   JPA_SHOW_SQL: "false"
+  MULTI_TENANT_REGISTRATION_ENABLED: "true"
+  DEMO_MULTI_TENANT_ENABLED: "false"
   # AWS S3 document storage (production — see deploy/aws/README.md)
   APP_STORAGE_PROVIDER: local
   AWS_S3_BUCKET: ""

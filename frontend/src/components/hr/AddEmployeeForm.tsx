@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { hireEmployee } from '@/lib/api/auth-api'
 import { fetchDepartments } from '@/lib/api/employee-api'
+import { hireRoleOptions, type HireRole } from '@/lib/auth/signup-roles'
 import type { HireEmployeeResponse } from '@/types/hr'
 type AddEmployeeFormProps = {
   onHired?: (result: HireEmployeeResponse) => void
@@ -26,6 +27,7 @@ export function AddEmployeeForm({ onHired }: AddEmployeeFormProps) {
   const [phone, setPhone] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [hireDate, setHireDate] = useState(todayIsoDate())
+  const [role, setRole] = useState<HireRole>('EMPLOYEE')
   const [temporaryPassword, setTemporaryPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -56,6 +58,7 @@ export function AddEmployeeForm({ onHired }: AddEmployeeFormProps) {
         departmentId: Number(departmentId),
         hireDate,
         temporaryPassword,
+        role,
       })
       setSuccess(result)
       onHired?.(result)
@@ -147,6 +150,21 @@ export function AddEmployeeForm({ onHired }: AddEmployeeFormProps) {
                 Could not load departments. Refresh the page or contact support.
               </p>
             ) : null}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="hire-role">Role</Label>
+            <select
+              id="hire-role"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={role}
+              onChange={(e) => setRole(e.target.value as HireRole)}
+            >
+              {hireRoleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="hire-date">Hire date</Label>

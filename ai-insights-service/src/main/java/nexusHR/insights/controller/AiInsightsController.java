@@ -2,6 +2,7 @@ package nexusHR.insights.controller;
 import jakarta.validation.Valid;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import nexusHR.common.security.SecurityExpressions;
 import nexusHR.insights.dto.AttritionPredictRequest;
 import nexusHR.insights.dto.AttritionPredictionResponse;
 import nexusHR.insights.dto.EngagementScoreResponse;
@@ -34,52 +35,52 @@ public class AiInsightsController {
         return Map.of("status", "UP", "service", "ai-insights-service");
     }
     @PostMapping("/attrition/predict")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
+    @PreAuthorize(SecurityExpressions.ANALYTICS)
     public AttritionPredictionResponse predict(@Valid @RequestBody AttritionPredictRequest request) {
         return attritionInsightService.predictFromRequest(request);
     }
     @GetMapping("/attrition/employee/{employeeId}")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
+    @PreAuthorize(SecurityExpressions.ANALYTICS)
     public AttritionPredictionResponse predictForEmployee(@PathVariable Long employeeId) {
         return attritionInsightService.predictForEmployee(employeeId);
     }
     @GetMapping("/attrition/team")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
+    @PreAuthorize(SecurityExpressions.ANALYTICS)
     public TeamAttritionInsightsResponse predictForTeam() {
         return attritionInsightService.predictForTeam();
     }
     @GetMapping("/engagement/employee/{employeeId}")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
+    @PreAuthorize(SecurityExpressions.ANALYTICS)
     public EngagementScoreResponse engagementForEmployee(@PathVariable Long employeeId) {
         return workforceIntelligenceService.engagementForEmployee(employeeId);
     }
     @PostMapping("/engagement/score")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
+    @PreAuthorize(SecurityExpressions.ANALYTICS)
     public EngagementScoreResponse scoreEngagement(@Valid @RequestBody AttritionPredictRequest request) {
         return workforceIntelligenceService.engagementFromRequest(request);
     }
     @GetMapping("/engagement/team")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
+    @PreAuthorize(SecurityExpressions.ANALYTICS)
     public TeamEngagementInsightsResponse engagementForTeam() {
         return workforceIntelligenceService.engagementForTeam();
     }
     @GetMapping("/skills/gaps/employee/{employeeId}")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
+    @PreAuthorize(SecurityExpressions.ANALYTICS)
     public SkillGapAnalysisResponse skillGapsForEmployee(@PathVariable Long employeeId) {
         return workforceIntelligenceService.skillGapsForEmployee(employeeId);
     }
     @PostMapping("/skills/gaps/analyze")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
+    @PreAuthorize(SecurityExpressions.ANALYTICS)
     public SkillGapAnalysisResponse analyzeSkillGaps(@Valid @RequestBody AttritionPredictRequest request) {
         return workforceIntelligenceService.skillGapsFromRequest(request);
     }
     @GetMapping("/skills/gaps/team")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
+    @PreAuthorize(SecurityExpressions.ANALYTICS)
     public TeamSkillGapInsightsResponse skillGapsForTeam() {
         return workforceIntelligenceService.skillGapsForTeam();
     }
     @GetMapping("/analytics/workforce")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    @PreAuthorize(SecurityExpressions.EXECUTIVE_READ)
     public WorkforceAnalyticsResponse workforceAnalytics() {
         return workforceAnalyticsService.getWorkforceAnalytics();
     }

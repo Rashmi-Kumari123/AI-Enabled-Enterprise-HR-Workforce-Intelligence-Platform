@@ -18,7 +18,15 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
 @RequiredArgsConstructor
 public class TenantSlugResolverFilter extends OncePerRequestFilter {
+    private static final String TENANT_REGISTER_PATH = "/api/v1/tenants/register";
+
     private final TenantService tenantService;
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return TENANT_REGISTER_PATH.equals(path);
+    }
 
     @Override
     protected void doFilterInternal(

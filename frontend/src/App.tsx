@@ -5,6 +5,7 @@ import { AppLayout } from '@/layouts/AppLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { ChangePasswordPage } from '@/pages/auth/CompanyAuthPages'
+import { CompanyRegisterPage } from '@/pages/auth/CompanyRegisterPage'
 import { SignupPage } from '@/pages/auth/SignupPage'
 import { AiAssistantPage } from '@/pages/AiAssistantPage'
 import { AnalyticsReportsPage } from '@/pages/AnalyticsReportsPage'
@@ -36,6 +37,7 @@ export default function App() {
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/register" element={<CompanyRegisterPage />} />
         </Route>
       </Route>
 

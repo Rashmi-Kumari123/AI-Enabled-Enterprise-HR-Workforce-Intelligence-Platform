@@ -44,8 +44,10 @@ public class OrganizationRegistrationService {
                 .findByCode("STARTER")
                 .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Starter plan not configured"));
         Role adminRole = roleRepository
-                .findByName(RoleName.ROLE_ADMIN)
-                .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Admin role not configured"));
+                .findByName(RoleName.ROLE_SUPER_ADMIN)
+                .orElseGet(() -> roleRepository
+                        .findByName(RoleName.ROLE_ADMIN)
+                        .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Admin role not configured")));
 
         Organization organization = new Organization();
         organization.setName(request.companyName().trim());

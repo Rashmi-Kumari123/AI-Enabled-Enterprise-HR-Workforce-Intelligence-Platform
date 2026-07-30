@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import nexusHR.common.tenant.TenantHeaders;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -28,6 +29,7 @@ class NotificationControllerIntegrationTest {
     void internalDispatchCreatesNotification() throws Exception {
         mockMvc.perform(post("/api/v1/notifications/internal/dispatch")
                         .header("X-Internal-Key", "test-internal-key")
+                        .header(TenantHeaders.TENANT_ID, "1")
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
@@ -51,6 +53,7 @@ class NotificationControllerIntegrationTest {
     void internalDispatchRecordsEmailDelivery() throws Exception {
         mockMvc.perform(post("/api/v1/notifications/internal/dispatch")
                         .header("X-Internal-Key", "test-internal-key")
+                        .header(TenantHeaders.TENANT_ID, "1")
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
@@ -69,12 +72,15 @@ class NotificationControllerIntegrationTest {
     @Test
     void deliveryStatsRequiresAdminOrHr() throws Exception {
         mockMvc.perform(get("/api/v1/notifications/delivery-stats")
+                        .header(TenantHeaders.TENANT_ID, "1")
                         .with(user("employee@nexushr.com").roles("EMPLOYEE")))
                 .andExpect(status().isForbidden());
     }
     @Test
     void adminCanViewDeliveryStats() throws Exception {
-        mockMvc.perform(get("/api/v1/notifications/delivery-stats").with(user("admin@nexushr.com").roles("ADMIN")))
+        mockMvc.perform(get("/api/v1/notifications/delivery-stats")
+                        .header(TenantHeaders.TENANT_ID, "1")
+                        .with(user("admin@nexushr.com").roles("ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalSent").isNumber())
                 .andExpect(jsonPath("$.deliveryRatePercent").isNumber());
@@ -83,6 +89,7 @@ class NotificationControllerIntegrationTest {
     void userCanListOwnNotifications() throws Exception {
         mockMvc.perform(post("/api/v1/notifications/internal/dispatch")
                 .header("X-Internal-Key", "test-internal-key")
+                .header(TenantHeaders.TENANT_ID, "1")
                 .contentType(APPLICATION_JSON)
                 .content("""
                         {
@@ -94,7 +101,9 @@ class NotificationControllerIntegrationTest {
                         }
                         """));
 
-        mockMvc.perform(get("/api/v1/notifications/me").with(user("hr.user@company.com").roles("HR")))
+        mockMvc.perform(get("/api/v1/notifications/me")
+                        .header(TenantHeaders.TENANT_ID, "1")
+                        .with(user("hr.user@company.com").roles("HR")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].title").value("Welcome"));
     }

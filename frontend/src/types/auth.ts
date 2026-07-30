@@ -26,7 +26,7 @@ export type SignupRequest = {
   password: string
   firstName: string
   lastName: string
-  role: 'MANAGER' | 'HR' | 'ADMIN'
+  role: 'MANAGER' | 'HR' | 'PAYROLL' | 'IT_ADMIN' | 'ADMIN'
 }
 export type TenantRegisterRequest = {
   companyName: string

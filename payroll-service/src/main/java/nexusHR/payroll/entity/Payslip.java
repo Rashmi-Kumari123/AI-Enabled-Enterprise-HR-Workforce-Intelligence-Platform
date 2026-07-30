@@ -26,7 +26,10 @@ public class Payslip {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 32)
+    @Column(nullable = false)
+    private Long tenantId;
+
+    @Column(nullable = false, length = 32)
     private String payslipNumber;
 
     @Column(nullable = false)

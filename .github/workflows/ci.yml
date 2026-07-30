@@ -171,6 +171,7 @@ jobs:
           docker push "${uri}:latest"
           docker push "${uri}:${IMAGE_SHA}"
           kubectl set image deployment/frontend frontend="${uri}:latest" -n nexushr
+          kubectl rollout restart deployment/frontend -n nexushr
           kubectl rollout restart deployment/api-gateway -n nexushr
 
       - name: Wait for rollout

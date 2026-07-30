@@ -28,6 +28,9 @@ public class LeaveBalance {
     @Column(name = "employee_id", nullable = false)
     private Long employeeId;
 
+    @Column(name = "tenant_id", nullable = false)
+    private Long tenantId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "leave_type", nullable = false, length = 32)
     private LeaveType leaveType;

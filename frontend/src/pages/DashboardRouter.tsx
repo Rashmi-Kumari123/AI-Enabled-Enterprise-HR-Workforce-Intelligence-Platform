@@ -1,9 +1,14 @@
-import { useAuth } from '@/hooks/use-auth'
+import { usePermissions } from '@/hooks/use-permissions'
 import { EmployeeDashboardPage } from '@/pages/EmployeeDashboardPage'
+import { ExecutiveDashboardPage } from '@/pages/ExecutiveDashboardPage'
 import { ManagerDashboardPage } from '@/pages/ManagerDashboardPage'
+
 export function DashboardRouter() {
-  const { hasRole } = useAuth()
-  const isManagerView = hasRole('HR') || hasRole('ADMIN') || hasRole('MANAGER')
+  const { isExecutiveOnly, isManagerView } = usePermissions()
+
+  if (isExecutiveOnly) {
+    return <ExecutiveDashboardPage />
+  }
   if (isManagerView) {
     return <ManagerDashboardPage />
   }

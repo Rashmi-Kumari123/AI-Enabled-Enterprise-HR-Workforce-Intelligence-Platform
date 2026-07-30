@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import nexusHR.common.tenant.TenantHeaders;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -30,6 +31,7 @@ class LeaveWorkflowIntegrationTest {
     @WithMockUser(roles = "EMPLOYEE")
     void submitApproveAndListPending() throws Exception {
         MvcResult submit = mockMvc.perform(post("/api/v1/leaves")
+                        .header(TenantHeaders.TENANT_ID, "1")
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
@@ -48,11 +50,13 @@ class LeaveWorkflowIntegrationTest {
         long leaveId = submitJson.get("id").asLong();
 
         mockMvc.perform(get("/api/v1/leaves/pending")
+                        .header(TenantHeaders.TENANT_ID, "1")
                         .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("hr@nexushr.com").roles("HR")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value((int) leaveId));
 
         mockMvc.perform(post("/api/v1/leaves/" + leaveId + "/approve")
+                        .header(TenantHeaders.TENANT_ID, "1")
                         .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("hr@nexushr.com").roles("HR"))
                         .contentType(APPLICATION_JSON)
                         .content("""
@@ -63,11 +67,13 @@ class LeaveWorkflowIntegrationTest {
                 .andExpect(jsonPath("$.reviewComment").value("Approved - coverage arranged"));
 
         mockMvc.perform(get("/api/v1/leaves/employee/1")
+                        .header(TenantHeaders.TENANT_ID, "1")
                         .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("employee@nexushr.com").roles("EMPLOYEE")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].status").value("APPROVED"));
 
         mockMvc.perform(get("/api/v1/leaves/employee/1/balances")
+                        .header(TenantHeaders.TENANT_ID, "1")
                         .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("employee@nexushr.com").roles("EMPLOYEE")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.leaveType == 'ANNUAL')].usedDays").value(3))
@@ -77,7 +83,8 @@ class LeaveWorkflowIntegrationTest {
     @Test
     @WithMockUser(roles = "EMPLOYEE")
     void employeeCannotListPending() throws Exception {
-        mockMvc.perform(get("/api/v1/leaves/pending"))
+        mockMvc.perform(get("/api/v1/leaves/pending")
+                        .header(TenantHeaders.TENANT_ID, "1"))
                 .andExpect(status().isForbidden());
     }
 }

@@ -15,6 +15,7 @@ import nexusHR.insights.integration.NotificationClient;
 import nexusHR.insights.repository.WorkforceReportScheduleRepository;
 import nexusHR.insights.security.JwtRequestContext;
 import nexusHR.insights.security.JwtService;
+import nexusHR.common.tenant.TenantContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,7 +30,9 @@ public class WorkforceReportScheduleService {
     private final JwtService jwtService;
     @Transactional(readOnly = true)
     public List<ReportScheduleResponse> listForUser(String email) {
-        return repository.findByCreatedByEmailOrderByCreatedAtDesc(email).stream()
+        return repository
+                .findByTenantIdAndCreatedByEmailOrderByCreatedAtDesc(TenantContext.requireTenantId(), email)
+                .stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -40,6 +43,7 @@ public class WorkforceReportScheduleService {
                 : request.recipientEmail().trim();
 
         WorkforceReportSchedule schedule = new WorkforceReportSchedule();
+        schedule.setTenantId(TenantContext.requireTenantId());
         schedule.setRecipientEmail(recipient);
         schedule.setCreatedByEmail(creatorEmail);
         schedule.setFrequency(request.frequency());
@@ -51,7 +55,8 @@ public class WorkforceReportScheduleService {
     }
     @Transactional
     public void delete(Long id, String creatorEmail) {
-        WorkforceReportSchedule schedule = repository.findById(id)
+        WorkforceReportSchedule schedule = repository
+                .findByIdAndTenantId(id, TenantContext.requireTenantId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Report schedule not found"));
         if (!schedule.getCreatedByEmail().equalsIgnoreCase(creatorEmail)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Cannot delete another user's schedule");
@@ -62,15 +67,21 @@ public class WorkforceReportScheduleService {
     public void runDueSchedules() {
         Instant now = Instant.now();
         for (WorkforceReportSchedule schedule : repository.findByEnabledTrueAndNextRunAtLessThanEqual(now)) {
-            deliverSchedule(schedule);
-            schedule.setLastRunAt(now);
-            schedule.setNextRunAt(computeNextRun(schedule.getFrequency(), now));
-            repository.save(schedule);
+            TenantContext.setTenantId(schedule.getTenantId());
+            try {
+                deliverSchedule(schedule);
+                schedule.setLastRunAt(now);
+                schedule.setNextRunAt(computeNextRun(schedule.getFrequency(), now));
+                repository.save(schedule);
+            } finally {
+                TenantContext.clear();
+            }
         }
     }
     @Transactional
     public void runNow(Long id, String creatorEmail) {
-        WorkforceReportSchedule schedule = repository.findById(id)
+        WorkforceReportSchedule schedule = repository
+                .findByIdAndTenantId(id, TenantContext.requireTenantId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Report schedule not found"));
         if (!schedule.getCreatedByEmail().equalsIgnoreCase(creatorEmail)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Cannot run another user's schedule");

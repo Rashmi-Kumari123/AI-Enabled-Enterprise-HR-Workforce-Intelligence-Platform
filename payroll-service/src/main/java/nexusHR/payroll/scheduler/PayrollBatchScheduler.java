@@ -1,8 +1,11 @@
 package nexusHR.payroll.scheduler;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import nexusHR.common.tenant.TenantContext;
 import nexusHR.payroll.dto.GeneratePayslipRequest;
 import nexusHR.payroll.entity.SalaryStructure;
 import nexusHR.payroll.integration.EmployeeServiceClient;
@@ -31,33 +34,49 @@ public class PayrollBatchScheduler {
             return;
         }
         YearMonth previous = YearMonth.now().minusMonths(1);
-        List<SalaryStructure> structures = salaryStructureRepository.findAll();
-        log.info("Starting automated payroll for {} ({} employees)", previous, structures.size());
+        Map<Long, List<SalaryStructure>> structuresByTenant = salaryStructureRepository.findAll().stream()
+                .collect(Collectors.groupingBy(SalaryStructure::getTenantId));
+        log.info(
+                "Starting automated payroll for {} ({} employees across {} tenants)",
+                previous,
+                structuresByTenant.values().stream().mapToInt(List::size).sum(),
+                structuresByTenant.size());
 
-        for (SalaryStructure structure : structures) {
+        for (Map.Entry<Long, List<SalaryStructure>> entry : structuresByTenant.entrySet()) {
+            TenantContext.setTenantId(entry.getKey());
             try {
-                var employee = employeeServiceClient.fetchEmployee(structure.getEmployeeId());
-                if (employee == null || "TERMINATED".equals(employee.employmentStatus())) {
-                    continue;
+                for (SalaryStructure structure : entry.getValue()) {
+                    processStructure(structure, previous);
                 }
-                int unpaidLeaveDays = leaveServiceClient.fetchUnpaidLeaveDays(
-                        structure.getEmployeeId(), previous.getYear(), previous.getMonthValue());
-                payrollService.generatePayslip(
-                        new GeneratePayslipRequest(
-                                structure.getEmployeeId(),
-                                employee.employeeCode(),
-                                employee.fullName(),
-                                previous.getYear(),
-                                previous.getMonthValue(),
-                                null,
-                                unpaidLeaveDays),
-                        "payroll-batch");
-            } catch (Exception ex) {
-                log.warn(
-                        "Automated payroll skipped/failed for employee {}: {}",
-                        structure.getEmployeeId(),
-                        ex.getMessage());
+            } finally {
+                TenantContext.clear();
             }
+        }
+    }
+
+    private void processStructure(SalaryStructure structure, YearMonth previous) {
+        try {
+            var employee = employeeServiceClient.fetchEmployee(structure.getEmployeeId());
+            if (employee == null || "TERMINATED".equals(employee.employmentStatus())) {
+                return;
+            }
+            int unpaidLeaveDays = leaveServiceClient.fetchUnpaidLeaveDays(
+                    structure.getEmployeeId(), previous.getYear(), previous.getMonthValue());
+            payrollService.generatePayslip(
+                    new GeneratePayslipRequest(
+                            structure.getEmployeeId(),
+                            employee.employeeCode(),
+                            employee.fullName(),
+                            previous.getYear(),
+                            previous.getMonthValue(),
+                            null,
+                            unpaidLeaveDays),
+                    "payroll-batch");
+        } catch (Exception ex) {
+            log.warn(
+                    "Automated payroll skipped/failed for employee {}: {}",
+                    structure.getEmployeeId(),
+                    ex.getMessage());
         }
     }
 }

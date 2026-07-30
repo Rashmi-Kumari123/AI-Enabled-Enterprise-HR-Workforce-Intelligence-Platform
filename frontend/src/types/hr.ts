@@ -51,6 +51,7 @@ export type HireEmployeeInput = {
   phone?: string
   departmentId: number
   hireDate: string
+  role?: 'EMPLOYEE' | 'MANAGER' | 'PAYROLL' | 'HR' | 'IT_ADMIN' | 'EXECUTIVE'
 }
 export type HireEmployeeResponse = {
   userId: number

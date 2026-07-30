@@ -5,6 +5,10 @@ import nexusHR.payroll.entity.Payslip;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PayslipRepository extends JpaRepository<Payslip, Long> {
-    Optional<Payslip> findByEmployeeIdAndPayYearAndPayMonth(Long employeeId, Integer payYear, Integer payMonth);
-    List<Payslip> findByEmployeeIdOrderByPayYearDescPayMonthDesc(Long employeeId);
+    Optional<Payslip> findByTenantIdAndEmployeeIdAndPayYearAndPayMonth(
+            Long tenantId, Long employeeId, Integer payYear, Integer payMonth);
+
+    List<Payslip> findByTenantIdAndEmployeeIdOrderByPayYearDescPayMonthDesc(Long tenantId, Long employeeId);
+
+    Optional<Payslip> findByIdAndTenantId(Long id, Long tenantId);
 }

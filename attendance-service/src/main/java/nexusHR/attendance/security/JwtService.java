@@ -46,6 +46,14 @@ public class JwtService {
         return Collections.emptyList();
     }
 
+    public Long extractTenantId(String token) {
+        Object tenantId = parseClaims(token).get("tenantId");
+        if (tenantId instanceof Number number) {
+            return number.longValue();
+        }
+        return null;
+    }
+
     private Claims parseClaims(String token) {
         return Jwts.parser().verifyWith(signingKey).build().parseSignedClaims(token).getPayload();
     }

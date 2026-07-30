@@ -29,6 +29,7 @@ import nexusHR.performance.integration.EmployeeServiceClient;
 import nexusHR.performance.integration.NotificationClient;
 import nexusHR.performance.repository.PerformanceFeedbackRepository;
 import nexusHR.performance.repository.PerformanceReviewRepository;
+import nexusHR.common.tenant.TenantContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,9 +45,10 @@ public class PerformanceReviewService {
 
     @Transactional
     public ReviewResponse create(CreateReviewRequest request, String reviewerEmail) {
+        Long tenantId = TenantContext.requireTenantId();
         if (reviewRepository
-                .findByEmployeeIdAndReviewYearAndReviewQuarter(
-                        request.employeeId(), request.reviewYear(), request.reviewQuarter())
+                .findByTenantIdAndEmployeeIdAndReviewYearAndReviewQuarter(
+                        tenantId, request.employeeId(), request.reviewYear(), request.reviewQuarter())
                 .isPresent()) {
             throw new ApiException(
                     HttpStatus.CONFLICT,
@@ -68,6 +70,7 @@ public class PerformanceReviewService {
         }
 
         PerformanceReview review = new PerformanceReview();
+        review.setTenantId(tenantId);
         review.setEmployeeId(request.employeeId());
         review.setReviewerEmail(reviewerEmail.toLowerCase());
         review.setReviewYear(request.reviewYear());
@@ -155,7 +158,7 @@ public class PerformanceReviewService {
     @Transactional
     public ReviewResponse acknowledge(Long id) {
         PerformanceReview review = reviewRepository
-                .findById(id)
+                .findByIdAndTenantId(id, TenantContext.requireTenantId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Review not found"));
         if (review.getStatus() != ReviewStatus.SUBMITTED) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Only submitted reviews can be acknowledged");
@@ -175,26 +178,32 @@ public class PerformanceReviewService {
     @Transactional(readOnly = true)
     public ReviewResponse findById(Long id) {
         return reviewRepository
-                .findById(id)
+                .findByIdAndTenantId(id, TenantContext.requireTenantId())
                 .map(ReviewResponse::from)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Review not found"));
     }
 
     @Transactional(readOnly = true)
     public List<ReviewResponse> findByEmployee(Long employeeId) {
-        return reviewRepository.findByEmployeeIdOrderByReviewYearDescReviewQuarterDesc(employeeId).stream()
+        return reviewRepository
+                .findByTenantIdAndEmployeeIdOrderByReviewYearDescReviewQuarterDesc(
+                        TenantContext.requireTenantId(), employeeId)
+                .stream()
                 .map(ReviewResponse::from)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public ScorecardResponse scorecard(Long employeeId) {
+        Long tenantId = TenantContext.requireTenantId();
         List<ReviewResponse> reviews = findByEmployee(employeeId).stream()
                 .filter(r -> r.status() == ReviewStatus.SUBMITTED || r.status() == ReviewStatus.ACKNOWLEDGED)
                 .toList();
 
         List<PerformanceReview> reviewEntities =
-                reviewRepository.findByEmployeeIdOrderByReviewYearDescReviewQuarterDesc(employeeId).stream()
+                reviewRepository
+                        .findByTenantIdAndEmployeeIdOrderByReviewYearDescReviewQuarterDesc(tenantId, employeeId)
+                        .stream()
                         .filter(r -> r.getStatus() == ReviewStatus.SUBMITTED || r.getStatus() == ReviewStatus.ACKNOWLEDGED)
                         .toList();
 
@@ -228,7 +237,7 @@ public class PerformanceReviewService {
                 .map(r -> new TrendPointResponse(r.getReviewYear(), r.getReviewQuarter(), r.getOverallRating()))
                 .toList();
 
-        Double avgOverall = reviewRepository.averageOverallRating(employeeId).orElse(null);
+        Double avgOverall = reviewRepository.averageOverallRating(tenantId, employeeId).orElse(null);
 
         return ScorecardResponse.of(
                 employeeId,
@@ -241,7 +250,7 @@ public class PerformanceReviewService {
 
     private PerformanceReview loadDraft(Long id) {
         PerformanceReview review = reviewRepository
-                .findById(id)
+                .findByIdAndTenantId(id, TenantContext.requireTenantId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Review not found"));
         if (review.getStatus() != ReviewStatus.DRAFT) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Review can only be edited while in DRAFT status");

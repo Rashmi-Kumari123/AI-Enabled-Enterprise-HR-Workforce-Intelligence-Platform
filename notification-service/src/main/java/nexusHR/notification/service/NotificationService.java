@@ -18,6 +18,7 @@ import nexusHR.notification.enums.NotificationType;
 import nexusHR.notification.exception.ApiException;
 import nexusHR.notification.repository.NotificationDeliveryRepository;
 import nexusHR.notification.repository.NotificationRepository;
+import nexusHR.common.tenant.TenantContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,13 +34,17 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public List<NotificationResponse> listForUser(String email) {
-        return notificationRepository.findTop20ByRecipientEmailOrderByCreatedAtDesc(normalize(email)).stream()
+        return notificationRepository
+                .findTop20ByTenantIdAndRecipientEmailOrderByCreatedAtDesc(
+                        TenantContext.requireTenantId(), normalize(email))
+                .stream()
                 .map(this::toResponse)
                 .toList();
     }
     @Transactional(readOnly = true)
     public UnreadCountResponse unreadCount(String email) {
-        long count = notificationRepository.countByRecipientEmailAndReadFalse(normalize(email));
+        long count = notificationRepository.countByTenantIdAndRecipientEmailAndReadFalse(
+                TenantContext.requireTenantId(), normalize(email));
         return new UnreadCountResponse(count);
     }
     @Transactional(readOnly = true)
@@ -66,18 +71,19 @@ public class NotificationService {
     }
     @Transactional
     public NotificationResponse markRead(Long id, String email) {
-        int updated = notificationRepository.markRead(id, normalize(email));
+        Long tenantId = TenantContext.requireTenantId();
+        int updated = notificationRepository.markRead(id, tenantId, normalize(email));
         if (updated == 0) {
             throw new ApiException(HttpStatus.NOT_FOUND, "Notification not found");
         }
         Notification notification = notificationRepository
-                .findById(id)
+                .findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Notification not found"));
         return toResponse(notification);
     }
     @Transactional
     public UnreadCountResponse markAllRead(String email) {
-        notificationRepository.markAllRead(normalize(email));
+        notificationRepository.markAllRead(TenantContext.requireTenantId(), normalize(email));
         return unreadCount(email);
     }
     @Transactional
@@ -156,6 +162,7 @@ public class NotificationService {
             Long referenceId,
             boolean read) {
         Notification notification = new Notification();
+        notification.setTenantId(TenantContext.requireTenantId());
         notification.setRecipientEmail(recipientEmail);
         notification.setTitle(title);
         notification.setMessage(message);

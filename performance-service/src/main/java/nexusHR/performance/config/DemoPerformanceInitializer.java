@@ -4,6 +4,7 @@ import java.time.Year;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import nexusHR.common.tenant.TenantContext;
 import nexusHR.performance.dto.CreateReviewRequest;
 import nexusHR.performance.dto.InviteFeedbackRequest;
 import nexusHR.performance.dto.RatingItemRequest;
@@ -32,6 +33,9 @@ public class DemoPerformanceInitializer implements ApplicationRunner {
     @Value("${app.demo.performance-seed-enabled:true}")
     private boolean seedEnabled;
 
+    @Value("${app.demo.tenant-id:1}")
+    private long demoTenantId;
+
     private static final List<RatingItemRequest> DEMO_RATINGS = List.of(
             new RatingItemRequest(RatingCriterion.TECHNICAL_SKILLS, 4, "Solid execution"),
             new RatingItemRequest(RatingCriterion.COMMUNICATION, 4, "Clear updates"),
@@ -44,6 +48,15 @@ public class DemoPerformanceInitializer implements ApplicationRunner {
         if (!seedEnabled) {
             return;
         }
+        TenantContext.setTenantId(demoTenantId);
+        try {
+            seedDemoReview();
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    private void seedDemoReview() {
         var employee = employeeServiceClient.fetchActiveEmployees().stream()
                 .filter(e -> "employee@nexushr.com".equalsIgnoreCase(e.email()))
                 .findFirst()
@@ -56,7 +69,8 @@ public class DemoPerformanceInitializer implements ApplicationRunner {
         int year = Year.now().getValue();
         int quarter = ((LocalDate.now().getMonthValue() - 1) / 3) + 1;
         if (reviewRepository
-                .findByEmployeeIdAndReviewYearAndReviewQuarter(employee.id(), year, quarter)
+                .findByTenantIdAndEmployeeIdAndReviewYearAndReviewQuarter(
+                        demoTenantId, employee.id(), year, quarter)
                 .isPresent()) {
             return;
         }
