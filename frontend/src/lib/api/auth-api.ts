@@ -3,7 +3,7 @@ import { fetchAuthedJson } from '@/lib/api/authenticated'
 import { fetchJson } from '@/lib/api/http'
 import { tenantHeaders } from '@/lib/tenant/tenant'
 import { getAccessToken } from '@/lib/auth/storage'
-import type { AuthResponse, AuthUser, ChangePasswordRequest, LoginRequest, SignupRequest } from '@/types/auth'
+import type { AuthResponse, AuthUser, ChangePasswordRequest, LoginRequest, SignupRequest, TenantRegisterRequest } from '@/types/auth'
 import type { HireEmployeeInput, HireEmployeeResponse } from '@/types/hr'
 const base = apiConfig.auth
 function withTenant(init?: RequestInit): RequestInit {
@@ -15,6 +15,14 @@ function withTenant(init?: RequestInit): RequestInit {
     },
   }
 }
+export async function registerCompany(request: TenantRegisterRequest): Promise<AuthResponse> {
+  return fetchJson<AuthResponse>(`${base}/api/v1/tenants/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+}
+
 export async function signup(request: SignupRequest): Promise<AuthResponse> {
   return fetchJson<AuthResponse>(`${base}/api/v1/auth/signup`, withTenant({
     method: 'POST',
@@ -46,7 +54,7 @@ export async function fetchCurrentUser(): Promise<AuthUser> {
     throw new Error('Not authenticated')
   }
   return fetchJson<AuthUser>(`${base}/api/v1/users/me`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}`, ...tenantHeaders() },
   })
 }
 export function hireEmployee(payload: HireEmployeeInput): Promise<HireEmployeeResponse> {

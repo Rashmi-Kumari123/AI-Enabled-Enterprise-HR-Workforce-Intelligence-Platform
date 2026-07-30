@@ -4,6 +4,7 @@ import java.time.YearMonth;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import nexusHR.common.tenant.TenantContext;
 import nexusHR.payroll.dto.GeneratePayslipRequest;
 import nexusHR.payroll.dto.SalaryStructureRequest;
 import nexusHR.payroll.integration.EmployeeServiceClient;
@@ -30,6 +31,9 @@ public class DemoPayrollInitializer implements ApplicationRunner {
     @Value("${app.demo.payroll-seed-enabled:true}")
     private boolean seedEnabled;
 
+    @Value("${app.demo.tenant-id:1}")
+    private long demoTenantId;
+
     private static final List<DemoSalary> DEFAULT_SALARIES = List.of(
             new DemoSalary(50_000, new BigDecimal("40"), new BigDecimal("2000"), new BigDecimal("1000")),
             new DemoSalary(45_000, new BigDecimal("40"), new BigDecimal("1500"), new BigDecimal("500")),
@@ -41,6 +45,15 @@ public class DemoPayrollInitializer implements ApplicationRunner {
         if (!seedEnabled) {
             return;
         }
+        TenantContext.setTenantId(demoTenantId);
+        try {
+            seedDemoPayroll();
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    private void seedDemoPayroll() {
         List<EmployeeServiceClient.EmployeeSnapshot> employees = employeeServiceClient.fetchActiveEmployees();
         if (employees.isEmpty()) {
             log.info("Demo payroll seed skipped: no active employees found");
@@ -51,7 +64,7 @@ public class DemoPayrollInitializer implements ApplicationRunner {
         int seededPayslips = 0;
         for (int i = 0; i < employees.size(); i++) {
             EmployeeServiceClient.EmployeeSnapshot employee = employees.get(i);
-            if (salaryStructureRepository.findByEmployeeId(employee.id()).isEmpty()) {
+            if (salaryStructureRepository.findByTenantIdAndEmployeeId(demoTenantId, employee.id()).isEmpty()) {
                 DemoSalary salary = DEFAULT_SALARIES.get(i % DEFAULT_SALARIES.size());
                 salaryStructureService.upsert(new SalaryStructureRequest(
                         employee.id(),
@@ -62,7 +75,8 @@ public class DemoPayrollInitializer implements ApplicationRunner {
                 seededStructures++;
             }
             if (payslipRepository
-                    .findByEmployeeIdAndPayYearAndPayMonth(employee.id(), current.getYear(), current.getMonthValue())
+                    .findByTenantIdAndEmployeeIdAndPayYearAndPayMonth(
+                            demoTenantId, employee.id(), current.getYear(), current.getMonthValue())
                     .isEmpty()) {
                 try {
                     payrollService.generatePayslip(

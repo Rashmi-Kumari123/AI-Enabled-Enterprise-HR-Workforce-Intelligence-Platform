@@ -11,6 +11,7 @@ import nexusHR.auth.dto.RefreshTokenRequest;
 import nexusHR.auth.dto.ChangePasswordRequest;
 import nexusHR.auth.dto.SignupRequest;
 import nexusHR.auth.service.AuthService;
+import nexusHR.common.security.SecurityExpressions;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -55,7 +56,7 @@ public class AuthController {
     }
     @PostMapping("/hire")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    @PreAuthorize(SecurityExpressions.TENANT_ADMIN)
     public HireEmployeeResponse hire(@Valid @RequestBody HireEmployeeRequest request) {
         return authService.hireEmployee(request);
     }

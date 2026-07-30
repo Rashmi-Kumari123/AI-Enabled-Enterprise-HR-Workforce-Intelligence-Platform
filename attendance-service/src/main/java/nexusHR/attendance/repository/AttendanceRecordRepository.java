@@ -9,10 +9,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AttendanceRecordRepository extends JpaRepository<AttendanceRecord, Long> {
 
-    Optional<AttendanceRecord> findByEmployeeIdAndWorkDate(Long employeeId, LocalDate workDate);
+    Optional<AttendanceRecord> findByTenantIdAndEmployeeIdAndWorkDate(
+            Long tenantId, Long employeeId, LocalDate workDate);
 
-    Optional<AttendanceRecord> findByEmployeeIdAndWorkDateAndStatus(
-            Long employeeId, LocalDate workDate, AttendanceStatus status);
+    Optional<AttendanceRecord> findByTenantIdAndEmployeeIdAndWorkDateAndStatus(
+            Long tenantId, Long employeeId, LocalDate workDate, AttendanceStatus status);
 
-    List<AttendanceRecord> findByEmployeeIdOrderByWorkDateDesc(Long employeeId);
+    List<AttendanceRecord> findByTenantIdAndEmployeeIdOrderByWorkDateDesc(Long tenantId, Long employeeId);
 }

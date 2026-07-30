@@ -114,7 +114,7 @@ class AuthControllerIntegrationTest {
                                 }
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.roles[0]").value("ROLE_ADMIN"));
+                .andExpect(jsonPath("$.roles[0]").value("ROLE_SUPER_ADMIN"));
     }
 
     @Test
@@ -133,5 +133,42 @@ class AuthControllerIntegrationTest {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.roles[0]").value("ROLE_HR"));
+    }
+
+    @Test
+    void tenantRegistrationCreatesIsolatedOrganization() throws Exception {
+        mockMvc.perform(post("/api/v1/tenants/register")
+                        .header(TenantHeaders.TENANT_SLUG, "nexushr")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "companyName": "Zidio Demo Corp",
+                                  "slug": "zidio-demo",
+                                  "adminEmail": "owner@zidio-demo.com",
+                                  "password": "Password123!",
+                                  "firstName": "Zidio",
+                                  "lastName": "Owner"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tenantSlug").value("zidio-demo"))
+                .andExpect(jsonPath("$.roles[0]").value("ROLE_SUPER_ADMIN"));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .header(TenantHeaders.TENANT_SLUG, "zidio-demo")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {"email": "owner@zidio-demo.com", "password": "Password123!"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tenantSlug").value("zidio-demo"));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .header(TenantHeaders.TENANT_SLUG, "zidio-demo")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {"email": "admin@nexushr.com", "password": "NexusHR@2026"}
+                                """))
+                .andExpect(status().isUnauthorized());
     }
 }

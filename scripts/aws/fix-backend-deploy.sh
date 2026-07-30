@@ -71,6 +71,7 @@ docker push "${frontend_uri}"
 
 kubectl set image deployment/frontend \
   frontend="${frontend_uri}" -n nexushr
+kubectl rollout restart deployment/frontend -n nexushr
 kubectl rollout restart deployment/api-gateway -n nexushr
 kubectl rollout status deployment/frontend -n nexushr --timeout=180s
 kubectl rollout status deployment/api-gateway -n nexushr --timeout=180s

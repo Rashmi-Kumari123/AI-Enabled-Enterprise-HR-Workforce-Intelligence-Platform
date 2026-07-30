@@ -3,6 +3,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import nexusHR.common.security.SecurityExpressions;
 import nexusHR.payroll.dto.GeneratePayslipRequest;
 import nexusHR.payroll.dto.PayslipResponse;
 import nexusHR.payroll.dto.SalaryStructureRequest;
@@ -35,39 +36,39 @@ public class PayrollController {
         return Map.of("status", "UP", "service", "payroll-service");
     }
     @PutMapping("/salary-structures")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    @PreAuthorize(SecurityExpressions.PAYROLL_OPS)
     public SalaryStructureResponse upsertSalaryStructure(@Valid @RequestBody SalaryStructureRequest request) {
         return salaryStructureService.upsert(request);
     }
     @GetMapping("/salary-structures")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    @PreAuthorize(SecurityExpressions.PAYROLL_OPS)
     public List<SalaryStructureResponse> listSalaryStructures() {
         return salaryStructureService.findAll();
     }
     @GetMapping("/salary-structures/employee/{employeeId}")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN', 'MANAGER')")
+    @PreAuthorize(SecurityExpressions.MANAGEMENT)
     public SalaryStructureResponse getSalaryStructure(@PathVariable Long employeeId) {
         return salaryStructureService.findByEmployeeId(employeeId);
     }
     @PostMapping("/payslips/generate")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    @PreAuthorize(SecurityExpressions.PAYROLL_OPS)
     public PayslipResponse generatePayslip(
             @Valid @RequestBody GeneratePayslipRequest request, Authentication authentication) {
         return payrollService.generatePayslip(request, authentication.getName());
     }
     @GetMapping("/payslips/{id}")
-    @PreAuthorize("hasAnyRole('EMPLOYEE', 'HR', 'ADMIN', 'MANAGER')")
+    @PreAuthorize(SecurityExpressions.WORKFORCE)
     public PayslipResponse getPayslip(@PathVariable Long id) {
         return payrollService.findById(id);
     }
     @GetMapping("/payslips/employee/{employeeId}")
-    @PreAuthorize("hasAnyRole('EMPLOYEE', 'HR', 'ADMIN', 'MANAGER')")
+    @PreAuthorize(SecurityExpressions.WORKFORCE)
     public List<PayslipResponse> listPayslipsByEmployee(@PathVariable Long employeeId) {
         return payrollService.findByEmployee(employeeId);
     }
     @GetMapping("/payslips/{id}/download")
-    @PreAuthorize("hasAnyRole('EMPLOYEE', 'HR', 'ADMIN', 'MANAGER')")
+    @PreAuthorize(SecurityExpressions.WORKFORCE)
     public ResponseEntity<byte[]> downloadPayslip(@PathVariable Long id) {
         PayslipResponse payslip = payrollService.findById(id);
         byte[] pdf = payrollService.downloadPayslipPdf(id);
@@ -78,7 +79,7 @@ public class PayrollController {
                 .body(pdf);
     }
     @PostMapping("/payslips/{id}/mark-paid")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    @PreAuthorize(SecurityExpressions.PAYROLL_OPS)
     public PayslipResponse markPaid(@PathVariable Long id) {
         return payrollService.markPaid(id);
     }

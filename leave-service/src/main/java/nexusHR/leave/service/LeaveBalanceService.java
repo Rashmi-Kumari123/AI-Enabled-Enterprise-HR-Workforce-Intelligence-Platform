@@ -5,6 +5,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import nexusHR.common.enums.LeaveStatus;
 import nexusHR.common.enums.LeaveType;
+import nexusHR.common.tenant.TenantContext;
 import nexusHR.leave.dto.LeaveBalanceResponse;
 import nexusHR.leave.entity.LeaveBalance;
 import nexusHR.leave.exception.ApiException;
@@ -25,16 +26,18 @@ public class LeaveBalanceService {
     @Transactional
     public void seedBalancesForEmployee(Long employeeId) {
         int year = LocalDate.now().getYear();
-        upsertBalance(employeeId, LeaveType.ANNUAL, year, ANNUAL_ENTITLEMENT);
-        upsertBalance(employeeId, LeaveType.SICK, year, SICK_ENTITLEMENT);
+        Long tenantId = TenantContext.requireTenantId();
+        upsertBalance(tenantId, employeeId, LeaveType.ANNUAL, year, ANNUAL_ENTITLEMENT);
+        upsertBalance(tenantId, employeeId, LeaveType.SICK, year, SICK_ENTITLEMENT);
     }
     @Transactional
     public List<LeaveBalanceResponse> getBalances(Long employeeId) {
         int year = LocalDate.now().getYear();
-        if (leaveBalanceRepository.findByEmployeeIdAndBalanceYear(employeeId, year).isEmpty()) {
+        Long tenantId = TenantContext.requireTenantId();
+        if (leaveBalanceRepository.findByTenantIdAndEmployeeIdAndBalanceYear(tenantId, employeeId, year).isEmpty()) {
             seedBalancesForEmployee(employeeId);
         }
-        return leaveBalanceRepository.findByEmployeeIdAndBalanceYear(employeeId, year).stream()
+        return leaveBalanceRepository.findByTenantIdAndEmployeeIdAndBalanceYear(tenantId, employeeId, year).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -42,7 +45,8 @@ public class LeaveBalanceService {
     public int countUnpaidLeaveDays(Long employeeId, int year, int month) {
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
-        return leaveRequestRepository.findByEmployeeIdOrderBySubmittedAtDesc(employeeId).stream()
+        Long tenantId = TenantContext.requireTenantId();
+        return leaveRequestRepository.findByTenantIdAndEmployeeIdOrderBySubmittedAtDesc(tenantId, employeeId).stream()
                 .filter(leave -> leave.getStatus() == LeaveStatus.APPROVED)
                 .filter(leave -> leave.getLeaveType() == LeaveType.UNPAID)
                 .mapToInt(leave -> overlapDays(leave.getStartDate(), leave.getEndDate(), start, end))
@@ -54,14 +58,15 @@ public class LeaveBalanceService {
             return;
         }
         int year = startDate.getYear();
+        Long tenantId = TenantContext.requireTenantId();
         LeaveBalance balance = leaveBalanceRepository
-                .findByEmployeeIdAndLeaveTypeAndBalanceYear(employeeId, leaveType, year)
+                .findByTenantIdAndEmployeeIdAndLeaveTypeAndBalanceYear(tenantId, employeeId, leaveType, year)
                 .orElse(null);
         if (balance == null) {
             if (leaveType == LeaveType.ANNUAL || leaveType == LeaveType.SICK) {
                 seedBalancesForEmployee(employeeId);
                 balance = leaveBalanceRepository
-                        .findByEmployeeIdAndLeaveTypeAndBalanceYear(employeeId, leaveType, year)
+                        .findByTenantIdAndEmployeeIdAndLeaveTypeAndBalanceYear(tenantId, employeeId, leaveType, year)
                         .orElseThrow(() -> new ApiException(
                                 HttpStatus.BAD_REQUEST, "No leave balance configured for " + leaveType));
             } else {
@@ -93,8 +98,9 @@ public class LeaveBalanceService {
             return;
         }
         int days = inclusiveDaysBetween(startDate, endDate);
+        Long tenantId = TenantContext.requireTenantId();
         LeaveBalance balance = leaveBalanceRepository
-                .findByEmployeeIdAndLeaveTypeAndBalanceYear(employeeId, leaveType, startDate.getYear())
+                .findByTenantIdAndEmployeeIdAndLeaveTypeAndBalanceYear(tenantId, employeeId, leaveType, startDate.getYear())
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "Leave balance not found"));
         balance.setUsedDays(balance.getUsedDays() + days);
         balance.setRemainingDays(balance.getEntitledDays() - balance.getUsedDays());
@@ -102,7 +108,8 @@ public class LeaveBalanceService {
     }
 
     private int pendingDaysForType(Long employeeId, LeaveType leaveType) {
-        return leaveRequestRepository.findByEmployeeIdOrderBySubmittedAtDesc(employeeId).stream()
+        Long tenantId = TenantContext.requireTenantId();
+        return leaveRequestRepository.findByTenantIdAndEmployeeIdOrderBySubmittedAtDesc(tenantId, employeeId).stream()
                 .filter(leave -> leave.getStatus() == LeaveStatus.PENDING)
                 .filter(leave -> leave.getLeaveType() == leaveType)
                 .mapToInt(leave -> inclusiveDaysBetween(leave.getStartDate(), leave.getEndDate()))
@@ -113,13 +120,14 @@ public class LeaveBalanceService {
         return (int) ChronoUnit.DAYS.between(startDate, endDate) + 1;
     }
 
-    private void upsertBalance(Long employeeId, LeaveType leaveType, int year, int entitledDays) {
+    private void upsertBalance(Long tenantId, Long employeeId, LeaveType leaveType, int year, int entitledDays) {
         if (leaveBalanceRepository
-                .findByEmployeeIdAndLeaveTypeAndBalanceYear(employeeId, leaveType, year)
+                .findByTenantIdAndEmployeeIdAndLeaveTypeAndBalanceYear(tenantId, employeeId, leaveType, year)
                 .isPresent()) {
             return;
         }
         LeaveBalance balance = new LeaveBalance();
+        balance.setTenantId(tenantId);
         balance.setEmployeeId(employeeId);
         balance.setLeaveType(leaveType);
         balance.setBalanceYear(year);

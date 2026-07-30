@@ -14,6 +14,12 @@ import reactor.core.publisher.Mono;
 public class TenantGatewayFilter implements GlobalFilter, Ordered {
     private static final String DEFAULT_TENANT = "nexushr";
 
+    private final JwtTenantExtractor jwtTenantExtractor;
+
+    public TenantGatewayFilter(JwtTenantExtractor jwtTenantExtractor) {
+        this.jwtTenantExtractor = jwtTenantExtractor;
+    }
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
@@ -21,9 +27,16 @@ public class TenantGatewayFilter implements GlobalFilter, Ordered {
         if (slug == null || slug.isBlank()) {
             slug = DEFAULT_TENANT;
         }
-        ServerHttpRequest mutated =
-                request.mutate().header(TenantHeaders.TENANT_SLUG, slug.toLowerCase(Locale.ROOT)).build();
-        return chain.filter(exchange.mutate().request(mutated).build());
+        slug = slug.toLowerCase(Locale.ROOT);
+
+        ServerHttpRequest.Builder mutated = request.mutate().header(TenantHeaders.TENANT_SLUG, slug);
+
+        Long tenantId = jwtTenantExtractor.extractTenantId(request.getHeaders().getFirst("Authorization"));
+        if (tenantId != null) {
+            mutated.header(TenantHeaders.TENANT_ID, tenantId.toString());
+        }
+
+        return chain.filter(exchange.mutate().request(mutated.build()).build());
     }
 
     @Override

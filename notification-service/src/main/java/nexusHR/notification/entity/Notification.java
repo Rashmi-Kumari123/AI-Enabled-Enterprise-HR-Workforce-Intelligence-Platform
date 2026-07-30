@@ -24,6 +24,9 @@ public class Notification {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
+    private Long tenantId;
+
     @Column(name = "recipient_email", nullable = false)
     private String recipientEmail;
 

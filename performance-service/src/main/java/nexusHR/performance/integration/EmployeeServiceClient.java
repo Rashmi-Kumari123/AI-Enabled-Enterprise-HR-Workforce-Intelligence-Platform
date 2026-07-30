@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.Collections;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import nexusHR.common.tenant.TenantContext;
 import nexusHR.common.tenant.TenantHeaders;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -14,26 +15,25 @@ import org.springframework.web.client.RestClient;
 public class EmployeeServiceClient {
     private final RestClient restClient;
     private final String internalKey;
-    private final long demoTenantId;
 
     public EmployeeServiceClient(
             @Value("${app.services.employee-url:http://localhost:8082}") String employeeUrl,
-            @Value("${app.employee.internal-key:nexushr-internal-dev-key}") String internalKey,
-            @Value("${app.demo.tenant-id:1}") long demoTenantId) {
+            @Value("${app.employee.internal-key:nexushr-internal-dev-key}") String internalKey) {
         this.internalKey = internalKey;
-        this.demoTenantId = demoTenantId;
         this.restClient = RestClient.builder().baseUrl(employeeUrl).build();
     }
 
     public EmployeeSnapshot fetchEmployee(Long employeeId) {
         try {
-            return restClient
+            var spec = restClient
                     .get()
                     .uri("/api/v1/employees/internal/{id}", employeeId)
-                    .header("X-Internal-Key", internalKey)
-                    .header(TenantHeaders.TENANT_ID, String.valueOf(demoTenantId))
-                    .retrieve()
-                    .body(EmployeeSnapshot.class);
+                    .header("X-Internal-Key", internalKey);
+            Long tenantId = TenantContext.getTenantId();
+            if (tenantId != null) {
+                spec.header(TenantHeaders.TENANT_ID, tenantId.toString());
+            }
+            return spec.retrieve().body(EmployeeSnapshot.class);
         } catch (Exception ex) {
             log.warn("Failed to fetch employee {} for performance: {}", employeeId, ex.getMessage());
             return null;
@@ -42,13 +42,15 @@ public class EmployeeServiceClient {
 
     public List<EmployeeSnapshot> fetchActiveEmployees() {
         try {
-            EmployeeSnapshot[] employees = restClient
+            var spec = restClient
                     .get()
                     .uri("/api/v1/employees/internal/active")
-                    .header("X-Internal-Key", internalKey)
-                    .header(TenantHeaders.TENANT_ID, String.valueOf(demoTenantId))
-                    .retrieve()
-                    .body(EmployeeSnapshot[].class);
+                    .header("X-Internal-Key", internalKey);
+            Long tenantId = TenantContext.getTenantId();
+            if (tenantId != null) {
+                spec.header(TenantHeaders.TENANT_ID, tenantId.toString());
+            }
+            EmployeeSnapshot[] employees = spec.retrieve().body(EmployeeSnapshot[].class);
             if (employees == null) {
                 return Collections.emptyList();
             }

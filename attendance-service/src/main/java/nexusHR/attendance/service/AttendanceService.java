@@ -14,6 +14,7 @@ import nexusHR.attendance.integration.EmployeeServiceClient;
 import nexusHR.attendance.integration.NotificationClient;
 import nexusHR.attendance.repository.AttendanceRecordRepository;
 import nexusHR.common.enums.AttendanceStatus;
+import nexusHR.common.tenant.TenantContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,14 +29,17 @@ public class AttendanceService {
 
     @Transactional
     public AttendanceResponse clockIn(AttendanceRequest request) {
+        Long tenantId = TenantContext.requireTenantId();
         LocalDate today = LocalDate.now();
         attendanceRecordRepository
-                .findByEmployeeIdAndWorkDateAndStatus(request.employeeId(), today, AttendanceStatus.CLOCKED_IN)
+                .findByTenantIdAndEmployeeIdAndWorkDateAndStatus(
+                        tenantId, request.employeeId(), today, AttendanceStatus.CLOCKED_IN)
                 .ifPresent(record -> {
                     throw new ApiException(HttpStatus.CONFLICT, "Employee is already clocked in for today");
                 });
 
         AttendanceRecord record = new AttendanceRecord();
+        record.setTenantId(tenantId);
         record.setEmployeeId(request.employeeId());
         record.setWorkDate(today);
         record.setClockIn(Instant.now());
@@ -48,9 +52,11 @@ public class AttendanceService {
 
     @Transactional
     public AttendanceResponse clockOut(AttendanceRequest request) {
+        Long tenantId = TenantContext.requireTenantId();
         LocalDate today = LocalDate.now();
         AttendanceRecord record = attendanceRecordRepository
-                .findByEmployeeIdAndWorkDateAndStatus(request.employeeId(), today, AttendanceStatus.CLOCKED_IN)
+                .findByTenantIdAndEmployeeIdAndWorkDateAndStatus(
+                        tenantId, request.employeeId(), today, AttendanceStatus.CLOCKED_IN)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "No active clock-in found for today"));
 
         record.setClockOut(Instant.now());
@@ -65,7 +71,9 @@ public class AttendanceService {
 
     @Transactional(readOnly = true)
     public List<AttendanceResponse> findByEmployee(Long employeeId) {
-        return attendanceRecordRepository.findByEmployeeIdOrderByWorkDateDesc(employeeId).stream()
+        return attendanceRecordRepository
+                .findByTenantIdAndEmployeeIdOrderByWorkDateDesc(TenantContext.requireTenantId(), employeeId)
+                .stream()
                 .map(AttendanceResponse::from)
                 .toList();
     }
@@ -73,7 +81,8 @@ public class AttendanceService {
     @Transactional(readOnly = true)
     public AttendanceResponse findToday(Long employeeId) {
         return attendanceRecordRepository
-                .findByEmployeeIdAndWorkDate(employeeId, LocalDate.now())
+                .findByTenantIdAndEmployeeIdAndWorkDate(
+                        TenantContext.requireTenantId(), employeeId, LocalDate.now())
                 .map(AttendanceResponse::from)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "No attendance record for today"));
     }

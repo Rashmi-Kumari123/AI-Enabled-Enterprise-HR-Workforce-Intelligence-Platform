@@ -23,7 +23,10 @@ public class SalaryStructure {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
+    private Long tenantId;
+
+    @Column(nullable = false)
     private Long employeeId;
 
     @Column(nullable = false, precision = 12, scale = 2)

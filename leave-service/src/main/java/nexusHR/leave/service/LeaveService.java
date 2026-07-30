@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import nexusHR.common.enums.LeaveStatus;
+import nexusHR.common.tenant.TenantContext;
 import nexusHR.leave.dto.LeaveBalanceResponse;
 import nexusHR.leave.dto.LeaveResponse;
 import nexusHR.leave.dto.LeaveReviewRequest;
@@ -39,6 +40,7 @@ public class LeaveService {
                 request.leaveType(), request.employeeId(), request.startDate(), request.endDate());
 
         LeaveRequest leave = new LeaveRequest();
+        leave.setTenantId(TenantContext.requireTenantId());
         leave.setEmployeeId(request.employeeId());
         leave.setLeaveType(request.leaveType());
         leave.setStartDate(request.startDate());
@@ -53,19 +55,23 @@ public class LeaveService {
     @Transactional(readOnly = true)
     public LeaveResponse findById(Long id) {
         return leaveRequestRepository
-                .findById(id)
+                .findByIdAndTenantId(id, TenantContext.requireTenantId())
                 .map(LeaveResponse::from)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Leave request not found"));
     }
     @Transactional(readOnly = true)
     public List<LeaveResponse> findByEmployee(Long employeeId) {
-        return leaveRequestRepository.findByEmployeeIdOrderBySubmittedAtDesc(employeeId).stream()
+        return leaveRequestRepository
+                .findByTenantIdAndEmployeeIdOrderBySubmittedAtDesc(TenantContext.requireTenantId(), employeeId)
+                .stream()
                 .map(LeaveResponse::from)
                 .toList();
     }
     @Transactional(readOnly = true)
     public List<LeaveResponse> findPending() {
-        return leaveRequestRepository.findByStatusOrderBySubmittedAtAsc(LeaveStatus.PENDING).stream()
+        return leaveRequestRepository
+                .findByTenantIdAndStatusOrderBySubmittedAtAsc(TenantContext.requireTenantId(), LeaveStatus.PENDING)
+                .stream()
                 .map(LeaveResponse::from)
                 .toList();
     }
@@ -182,7 +188,7 @@ public class LeaveService {
 
     private LeaveRequest getPendingLeave(Long id) {
         LeaveRequest leave = leaveRequestRepository
-                .findById(id)
+                .findByIdAndTenantId(id, TenantContext.requireTenantId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Leave request not found"));
         if (leave.getStatus() != LeaveStatus.PENDING) {
             throw new ApiException(

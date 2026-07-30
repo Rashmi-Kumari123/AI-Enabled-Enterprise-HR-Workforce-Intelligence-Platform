@@ -6,7 +6,7 @@ import nexusHR.leave.entity.LeaveBalance;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Long> {
-    List<LeaveBalance> findByEmployeeIdAndBalanceYear(Long employeeId, int balanceYear);
-    Optional<LeaveBalance> findByEmployeeIdAndLeaveTypeAndBalanceYear(
-            Long employeeId, LeaveType leaveType, int balanceYear);
+    List<LeaveBalance> findByTenantIdAndEmployeeIdAndBalanceYear(Long tenantId, Long employeeId, int balanceYear);
+    Optional<LeaveBalance> findByTenantIdAndEmployeeIdAndLeaveTypeAndBalanceYear(
+            Long tenantId, Long employeeId, LeaveType leaveType, int balanceYear);
 }

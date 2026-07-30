@@ -22,6 +22,10 @@ public class TenantContextFilter extends OncePerRequestFilter {
             if (tenantIdHeader != null && !tenantIdHeader.isBlank()) {
                 TenantContext.setTenantId(Long.parseLong(tenantIdHeader.trim()));
             }
+            String slugHeader = request.getHeader(TenantHeaders.TENANT_SLUG);
+            if (slugHeader != null && !slugHeader.isBlank()) {
+                request.setAttribute(TenantHeaders.TENANT_SLUG, slugHeader.toLowerCase().trim());
+            }
             filterChain.doFilter(request, response);
         } finally {
             TenantContext.clear();

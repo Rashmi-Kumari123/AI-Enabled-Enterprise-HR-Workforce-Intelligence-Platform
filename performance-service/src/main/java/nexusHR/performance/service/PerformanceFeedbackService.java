@@ -21,6 +21,7 @@ import nexusHR.performance.integration.EmployeeServiceClient;
 import nexusHR.performance.integration.NotificationClient;
 import nexusHR.performance.repository.PerformanceFeedbackRepository;
 import nexusHR.performance.repository.PerformanceReviewRepository;
+import nexusHR.common.tenant.TenantContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -174,7 +175,7 @@ public class PerformanceFeedbackService {
     }
     private PerformanceReview loadReview(Long reviewId) {
         return reviewRepository
-                .findById(reviewId)
+                .findByIdAndTenantId(reviewId, TenantContext.requireTenantId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Review not found"));
     }
     private PerformanceFeedback loadPendingFeedback(Long feedbackId, String authEmail) {
@@ -186,6 +187,9 @@ public class PerformanceFeedbackService {
         }
         if (feedback.getStatus() != FeedbackStatus.PENDING) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Feedback has already been submitted");
+        }
+        if (!feedback.getReview().getTenantId().equals(TenantContext.requireTenantId())) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Feedback not found");
         }
         return feedback;
     }

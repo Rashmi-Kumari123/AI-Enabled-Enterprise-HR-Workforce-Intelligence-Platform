@@ -7,6 +7,8 @@ import nexusHR.auth.dto.UserProfileResponse;
 import nexusHR.auth.entity.User;
 import nexusHR.auth.repository.UserRepository;
 import nexusHR.auth.security.UserPrincipal;
+import nexusHR.common.security.SecurityExpressions;
+import nexusHR.common.tenant.TenantContext;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,18 +31,19 @@ public class UserController {
 
     /** Admin only — list all registered users. */
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(SecurityExpressions.TENANT_ADMIN_OR_IT)
     public List<UserProfileResponse> listAllUsers() {
-        return userRepository.findAll().stream().map(this::toProfile).toList();
+        Long tenantId = TenantContext.requireTenantId();
+        return userRepository.findAllByTenantId(tenantId).stream().map(this::toProfile).toList();
     }
 
     /** HR or Admin — workforce summary stub*/
     @GetMapping("/hr/dashboard")
-    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
+    @PreAuthorize(SecurityExpressions.TENANT_ADMIN)
     public Map<String, Object> hrDashboard() {
         return Map.of(
                 "message", "HR dashboard",
-                "registeredUsers", userRepository.count(),
+                "registeredUsers", userRepository.countByTenantId(TenantContext.requireTenantId()),
                 "access", "ROLE_HR or ROLE_ADMIN required");
     }
 

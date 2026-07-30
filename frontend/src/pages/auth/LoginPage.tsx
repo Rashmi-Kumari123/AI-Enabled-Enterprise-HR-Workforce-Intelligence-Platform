@@ -7,15 +7,19 @@ import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/hooks/use-auth'
 import { ApiError } from '@/lib/api/http'
+import { resolveTenantSlug, setTenantSlug } from '@/lib/tenant/tenant'
 
 const authFieldClass =
   'h-11 rounded-xl border-border/80 bg-input text-foreground placeholder:text-muted-foreground'
 
 const DEMO_ACCOUNTS = [
-  { role: 'Admin', email: 'admin@nexushr.com' },
-  { role: 'HR', email: 'hr@nexushr.com' },
+  { role: 'Super Admin', email: 'admin@nexushr.com' },
+  { role: 'HR Admin', email: 'hr@nexushr.com' },
   { role: 'Manager', email: 'manager@nexushr.com' },
+  { role: 'Payroll', email: 'payroll@nexushr.com' },
   { role: 'Employee', email: 'employee@nexushr.com' },
+  { role: 'IT Admin', email: 'it@nexushr.com' },
+  { role: 'Executive', email: 'ceo@nexushr.com' },
 ] as const
 
 const DEMO_PASSWORD = 'NexusHR@2026'
@@ -25,6 +29,7 @@ export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as { from?: string } | null)?.from ?? '/dashboard'
+  const [companySlug, setCompanySlug] = useState(resolveTenantSlug())
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -35,6 +40,8 @@ export function LoginPage() {
     setError(null)
     setIsSubmitting(true)
     try {
+      const slug = companySlug.trim().toLowerCase() || 'nexushr'
+      setTenantSlug(slug)
       await login({ email: email.trim(), password })
       navigate(from, { replace: true })
     } catch (err) {
@@ -52,6 +59,17 @@ export function LoginPage() {
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+        <div className="space-y-2">
+          <Label htmlFor="company-slug">Company slug</Label>
+          <Input
+            id="company-slug"
+            autoComplete="organization"
+            className={authFieldClass}
+            value={companySlug}
+            onChange={(e) => setCompanySlug(e.target.value.toLowerCase())}
+            placeholder="nexushr"
+          />
+        </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input
@@ -88,7 +106,7 @@ export function LoginPage() {
       </form>
 
       <div className="mt-8 rounded-xl border border-border/60 bg-muted/20 p-4">
-        <p className="text-xs font-medium text-muted-foreground">Demo accounts (password: {DEMO_PASSWORD})</p>
+        <p className="text-xs font-medium text-muted-foreground">Demo accounts (slug: nexushr, password: {DEMO_PASSWORD})</p>
         <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
           {DEMO_ACCOUNTS.map((account) => (
             <li key={account.email}>
@@ -100,9 +118,13 @@ export function LoginPage() {
       </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        HR or Manager self-registration?{' '}
+        New company?{' '}
+        <Link to="/register" className="font-semibold text-brand-teal hover:underline">
+          Register workspace
+        </Link>
+        {' · '}
         <Link to="/signup" className="font-semibold text-brand-teal hover:underline">
-          Create account
+          Join existing company
         </Link>
       </p>
     </div>

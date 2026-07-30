@@ -16,6 +16,7 @@ import nexusHR.payroll.integration.LeaveServiceClient;
 import nexusHR.payroll.integration.NotificationClient;
 import nexusHR.payroll.repository.PayslipRepository;
 import nexusHR.payroll.repository.SalaryStructureRepository;
+import nexusHR.common.tenant.TenantContext;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -37,9 +38,10 @@ public class PayrollService {
 
     @Transactional
     public PayslipResponse generatePayslip(GeneratePayslipRequest request, String generatedBy) {
+        Long tenantId = TenantContext.requireTenantId();
         if (payslipRepository
-                .findByEmployeeIdAndPayYearAndPayMonth(
-                        request.employeeId(), request.payYear(), request.payMonth())
+                .findByTenantIdAndEmployeeIdAndPayYearAndPayMonth(
+                        tenantId, request.employeeId(), request.payYear(), request.payMonth())
                 .isPresent()) {
             throw new ApiException(
                     HttpStatus.CONFLICT,
@@ -52,7 +54,7 @@ public class PayrollService {
         }
 
         SalaryStructure structure = salaryStructureRepository
-                .findByEmployeeId(request.employeeId())
+                .findByTenantIdAndEmployeeId(tenantId, request.employeeId())
                 .orElseThrow(() -> new ApiException(
                         HttpStatus.NOT_FOUND, "Salary structure not found. Configure salary before generating payslip."));
 
@@ -70,6 +72,7 @@ public class PayrollService {
         }
 
         Payslip payslip = new Payslip();
+        payslip.setTenantId(tenantId);
         payslip.setPayslipNumber(buildPayslipNumber(request));
         payslip.setEmployeeId(request.employeeId());
         payslip.setEmployeeCode(request.employeeCode());
@@ -90,14 +93,17 @@ public class PayrollService {
     @Transactional(readOnly = true)
     public PayslipResponse findById(Long id) {
         return payslipRepository
-                .findById(id)
+                .findByIdAndTenantId(id, TenantContext.requireTenantId())
                 .map(PayslipResponse::from)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Payslip not found"));
     }
 
     @Transactional(readOnly = true)
     public List<PayslipResponse> findByEmployee(Long employeeId) {
-        return payslipRepository.findByEmployeeIdOrderByPayYearDescPayMonthDesc(employeeId).stream()
+        return payslipRepository
+                .findByTenantIdAndEmployeeIdOrderByPayYearDescPayMonthDesc(
+                        TenantContext.requireTenantId(), employeeId)
+                .stream()
                 .map(PayslipResponse::from)
                 .toList();
     }
@@ -105,7 +111,7 @@ public class PayrollService {
     @Transactional(readOnly = true)
     public byte[] downloadPayslipPdf(Long id) {
         Payslip payslip = payslipRepository
-                .findById(id)
+                .findByIdAndTenantId(id, TenantContext.requireTenantId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Payslip not found"));
         return payslipPdfGenerator.generate(payslip);
     }
@@ -113,7 +119,7 @@ public class PayrollService {
     @Transactional
     public PayslipResponse markPaid(Long id) {
         Payslip payslip = payslipRepository
-                .findById(id)
+                .findByIdAndTenantId(id, TenantContext.requireTenantId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Payslip not found"));
         payslip.setStatus(PayslipStatus.PAID);
         Payslip saved = payslipRepository.save(payslip);

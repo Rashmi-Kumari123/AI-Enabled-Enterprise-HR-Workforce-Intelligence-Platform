@@ -145,14 +145,26 @@ docker compose up -d
 
 ### Demo login
 
-Password for all accounts: **`NexusHR@2026`**
+Company slug: **`nexushr`**. Password for all accounts: **`NexusHR@2026`**
 
 | Role | Email |
 |:-----|:------|
-| Admin | `admin@nexushr.com` |
-| HR | `hr@nexushr.com` |
-| Manager | `manager@nexushr.com` |
+| Super Admin | `admin@nexushr.com` |
+| HR Admin | `hr@nexushr.com` |
+| Department Manager | `manager@nexushr.com` |
+| Payroll Manager | `payroll@nexushr.com` |
 | Employee | `employee@nexushr.com` |
+| IT Admin | `it@nexushr.com` |
+| CEO / Executive | `ceo@nexushr.com` |
+
+### Multi-tenant
+
+- **Login:** enter company slug on the sign-in form (defaults to `nexushr`).
+- **Register company:** http://localhost:5173/register — creates an isolated org + Super Admin.
+- **Join existing company:** http://localhost:5173/signup — HR, Manager, Payroll, or IT Admin self-registration within a slug.
+- **Isolation:** shared database with `tenant_id` on every service; JWT carries `tenantId` and the gateway forwards `X-Tenant-Id`.
+
+Register a second company (e.g. slug `zidio-demo`) to verify tenants cannot access each other's data.
 
 ### Stop
 
@@ -224,12 +236,12 @@ Java 21 · Spring Boot 3.5 · Spring Cloud Gateway · PostgreSQL · Redis · Rea
 - [x] Prometheus + Grafana monitoring
 - [x] OWASP ZAP security baseline
 
-### Phase 4 — Multi-tenant SaaS 
-- [x] Organization registration and tenant isolation
-- [x] Tenant context propagation (gateway + services)
-- [x] Subscription plans and seat tracking
-- [x] Multi-company demo seed data
-- [x] Company register and change-password flows
+### Phase 4 — Multi-tenant SaaS (MVP)
+- [x] Organization registration and tenant isolation (`tenant_id` on all services)
+- [x] Tenant context propagation (gateway JWT → `X-Tenant-Id` + slug at login)
+- [x] 7-role RBAC matrix (Super Admin, HR, Manager, Payroll, Employee, IT Admin, Executive)
+- [x] Permission-driven navigation and role-specific dashboards
+- [x] Company register, login slug, and hire-with-role flows
 
 ### Phase 5 — Future enhancements
 - [ ] SSO / OAuth2 (Google, Microsoft)

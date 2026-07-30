@@ -1,4 +1,5 @@
 package nexusHR.auth.config;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import nexusHR.auth.dto.InternalOnboardEmployeeRequest;
@@ -19,6 +20,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
 @Slf4j
 @Component
 @Order(2)
@@ -35,13 +37,20 @@ public class DemoUserInitializer implements ApplicationRunner {
 
     @Value("${app.demo.seed-enabled:true}")
     private boolean seedEnabled;
-    public record DemoAccount(String email, RoleName role, String firstName, String lastName, String departmentCode) {}
+
+    public record DemoAccount(
+            String email, RoleName role, String firstName, String lastName, String departmentCode) {}
+
     private static final DemoAccount[] DEMO_ACCOUNTS = {
-        new DemoAccount("admin@nexushr.com", RoleName.ROLE_ADMIN, "Aarav", "Admin", "IT"),
+        new DemoAccount("admin@nexushr.com", RoleName.ROLE_SUPER_ADMIN, "Aarav", "Admin", "IT"),
         new DemoAccount("hr@nexushr.com", RoleName.ROLE_HR, "Priya", "Sharma", "HR"),
         new DemoAccount("manager@nexushr.com", RoleName.ROLE_MANAGER, "Rohan", "Mehta", "OPS"),
+        new DemoAccount("payroll@nexushr.com", RoleName.ROLE_PAYROLL, "Kavya", "Reddy", "FIN"),
         new DemoAccount("employee@nexushr.com", RoleName.ROLE_EMPLOYEE, "Ananya", "Kumar", "IT"),
+        new DemoAccount("it@nexushr.com", RoleName.ROLE_IT_ADMIN, "Vikram", "Singh", "IT"),
+        new DemoAccount("ceo@nexushr.com", RoleName.ROLE_EXECUTIVE, "Neha", "Kapoor", "OPS"),
     };
+
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
@@ -58,6 +67,7 @@ public class DemoUserInitializer implements ApplicationRunner {
             seedDemoAccount(tenant, account);
         }
     }
+
     private void seedDemoAccount(Organization tenant, DemoAccount account) {
         String email = account.email().toLowerCase().trim();
         Role role = roleRepository
@@ -77,6 +87,11 @@ public class DemoUserInitializer implements ApplicationRunner {
                     log.info("Seeded demo account {} ({})", email, account.role());
                     return saved;
                 });
+
+        if (!user.getRoles().contains(role)) {
+            user.getRoles().add(role);
+            userRepository.save(user);
+        }
 
         employeeServiceClient.provisionEmployee(new InternalOnboardEmployeeRequest(
                 tenant.getId(),

@@ -183,8 +183,8 @@ public class AuthService {
             throw new ApiException(HttpStatus.CONFLICT, "Email already registered in this organization");
         }
         Role employeeRole = roleRepository
-                .findByName(RoleName.ROLE_EMPLOYEE)
-                .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Employee role not configured"));
+                .findByName(request.resolvedRole())
+                .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Role not configured"));
 
         User user = new User();
         user.setTenant(tenant);
@@ -207,7 +207,7 @@ public class AuthService {
                     request.departmentId(),
                     null,
                     request.hireDate(),
-                    false));
+                    request.resolvedRole() != RoleName.ROLE_EMPLOYEE));
         } catch (IllegalStateException ex) {
             throw new ApiException(HttpStatus.BAD_GATEWAY, ex.getMessage());
         }

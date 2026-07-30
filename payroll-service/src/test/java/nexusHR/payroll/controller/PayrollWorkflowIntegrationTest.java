@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import nexusHR.common.tenant.TenantHeaders;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -31,6 +32,7 @@ class PayrollWorkflowIntegrationTest {
     @WithMockUser(roles = "HR")
     void configureSalaryGeneratePayslipAndDownloadPdf() throws Exception {
         mockMvc.perform(put("/api/v1/payroll/salary-structures")
+                        .header(TenantHeaders.TENANT_ID, "1")
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
@@ -46,6 +48,7 @@ class PayrollWorkflowIntegrationTest {
                 .andExpect(jsonPath("$.baseSalary").value(50000.00));
 
         MvcResult generate = mockMvc.perform(post("/api/v1/payroll/payslips/generate")
+                        .header(TenantHeaders.TENANT_ID, "1")
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
@@ -67,16 +70,20 @@ class PayrollWorkflowIntegrationTest {
         JsonNode payslip = objectMapper.readTree(generate.getResponse().getContentAsString());
         long payslipId = payslip.get("id").asLong();
 
-        mockMvc.perform(get("/api/v1/payroll/payslips/" + payslipId).with(user("employee@nexushr.com").roles("EMPLOYEE")))
+        mockMvc.perform(get("/api/v1/payroll/payslips/" + payslipId)
+                        .header(TenantHeaders.TENANT_ID, "1")
+                        .with(user("employee@nexushr.com").roles("EMPLOYEE")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.employeeName").value("Rashmi Kumari"));
 
         mockMvc.perform(get("/api/v1/payroll/payslips/" + payslipId + "/download")
+                        .header(TenantHeaders.TENANT_ID, "1")
                         .with(user("employee@nexushr.com").roles("EMPLOYEE")))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("PS-202606-1.pdf")));
 
         mockMvc.perform(post("/api/v1/payroll/payslips/generate")
+                        .header(TenantHeaders.TENANT_ID, "1")
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
@@ -93,6 +100,7 @@ class PayrollWorkflowIntegrationTest {
     @WithMockUser(roles = "EMPLOYEE")
     void employeeCannotConfigureSalary() throws Exception {
         mockMvc.perform(put("/api/v1/payroll/salary-structures")
+                        .header(TenantHeaders.TENANT_ID, "1")
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
